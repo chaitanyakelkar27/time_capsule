@@ -1,0 +1,15 @@
+# Project documentation (personal notes)
+PROJECT_GUIDE.md
+QUICK_START.md
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
