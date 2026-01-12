@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
 import '../../widgets/capsule_card.dart';
 import '../capsule/create_capsule_screen.dart';
+import '../capsule/capsule_detail_screen.dart';
 import '../auth/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -146,10 +147,11 @@ class _HomeScreenState extends State<HomeScreen>
           capsule: capsule,
           isSent: isSent,
           onTap: () {
-            // TODO: Navigate to capsule detail screen
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Capsule detail screen coming soon!'),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    CapsuleDetailScreen(capsule: capsule, isSent: isSent),
               ),
             );
           },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/capsule_model.dart';
+import '../screens/capsule/capsule_detail_screen.dart';
 
 class CapsuleCard extends StatelessWidget {
   final CapsuleModel capsule;

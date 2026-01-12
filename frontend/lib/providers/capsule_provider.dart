@@ -122,6 +122,25 @@ class CapsuleProvider with ChangeNotifier {
     }
   }
 
+  // Delete capsule
+  Future<void> deleteCapsule(String capsuleId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _firestoreService.deleteCapsule(capsuleId);
+      // Remove from local lists
+      _sentCapsules.removeWhere((c) => c.capsuleId == capsuleId);
+      _receivedCapsules.removeWhere((c) => c.capsuleId == capsuleId);
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
