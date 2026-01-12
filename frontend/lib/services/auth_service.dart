@@ -19,9 +19,14 @@ class AuthService {
     required String displayName,
   }) async {
     try {
+      print('🔥 Attempting sign up for: $email');
+      print('🔥 Firebase Auth instance: ${_auth.app.name}');
+
       // Create user in Firebase Auth
       final UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
+
+      print('✅ Sign up successful!');
 
       final User? user = userCredential.user;
       if (user == null) return null;
@@ -40,8 +45,10 @@ class AuthService {
 
       return userModel;
     } on FirebaseAuthException catch (e) {
+      print('❌ Firebase Auth Error: ${e.code} - ${e.message}');
       throw _handleAuthException(e);
     } catch (e) {
+      print('❌ Unknown Error: $e');
       throw Exception('Failed to sign up: $e');
     }
   }
@@ -52,8 +59,12 @@ class AuthService {
     required String password,
   }) async {
     try {
+      print('🔥 Attempting sign in for: $email');
+
       final UserCredential userCredential = await _auth
           .signInWithEmailAndPassword(email: email, password: password);
+
+      print('✅ Sign in successful!');
 
       final User? user = userCredential.user;
       if (user == null) return null;
