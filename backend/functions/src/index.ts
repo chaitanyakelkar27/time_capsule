@@ -7,9 +7,15 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
+import { setGlobalOptions } from "firebase-functions";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import * as admin from "firebase-admin";
+
+// Initialize Firebase Admin
+admin.initializeApp();
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -25,6 +31,262 @@ import * as logger from "firebase-functions/logger";
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
 setGlobalOptions({ maxInstances: 10 });
+
+/**
+ * Check and unlock matured capsules (runs every hour)
+ */
+export const checkMaturedCapsules = onSchedule(
+    { schedule: "every 1 hours", timeZone: "America/New_York" },
+    async () => {
+        logger.info("⏰ Checking matured capsules...");
+
+        try {
+            const now = admin.firestore.Timestamp.now();
+            const db = admin.firestore();
+
+            // Query locked capsules where unlock time has passed
+            const snapshot = await db
+                .collection("capsules")
+                .where("isLocked", "==", true)
+                .where("unlockType", "in", ["time", "both"])
+                .where("unlockDate", "<=", now)
+                .get();
+
+            logger.info(`📊 Found ${snapshot.size} capsules to unlock`);
+
+            if (snapshot.empty) {
+                logger.info("✅ No capsules to unlock");
+                return;
+            }
+
+            // Unlock each capsule
+            const batch = db.batch();
+            const notifications: Promise<void>[] = [];
+
+            snapshot.docs.forEach((doc) => {
+                const capsuleData = doc.data();
+
+                // Update capsule status
+                batch.update(doc.ref, {
+                    isLocked: false,
+                    status: "unlocked",
+                    unlockedAt: now,
+                    updatedAt: now,
+                });
+
+                // Prepare notification for recipient
+                notifications.push(
+                    sendUnlockNotification(
+                        capsuleData.recipientId,
+                        capsuleData.title,
+                        capsuleData.senderName,
+                        doc.id
+                    )
+                );
+            });
+
+            // Commit batch update
+            await batch.commit();
+            logger.info(`✅ Unlocked ${snapshot.size} capsules`);
+
+            // Send notifications
+            await Promise.all(notifications);
+            logger.info(`📱 Sent ${notifications.length} notifications`);
+        } catch (error) {
+            logger.error("❌ Error checking matured capsules:", error);
+        }
+    }
+);
+
+/**
+ * Send unlock notification to user
+ * @param {string} userId - The ID of the user to notify
+ * @param {string} capsuleTitle - The title of the capsule
+ * @param {string} senderName - Name of the capsule sender
+ * @param {string} capsuleId - The ID of the capsule
+ * @return {Promise<void>}
+ */
+async function sendUnlockNotification(
+    userId: string,
+    capsuleTitle: string,
+    senderName: string,
+    capsuleId: string
+): Promise<void> {
+    try {
+        const db = admin.firestore();
+        const userDoc = await db.collection("users").doc(userId).get();
+
+        if (!userDoc.exists) {
+            logger.warn(`User ${userId} not found`);
+            return;
+        }
+
+        const fcmToken = userDoc.data()?.fcmToken;
+
+        if (!fcmToken) {
+            logger.warn(`No FCM token for user ${userId}`);
+            return;
+        }
+
+        // Send notification
+        await admin.messaging().send({
+            token: fcmToken,
+            notification: {
+                title: "🎉 Capsule Unlocked!",
+                body: `"${capsuleTitle}" from ${senderName} is ready to view!`,
+            },
+            data: {
+                capsuleId: capsuleId,
+                type: "unlock",
+                click_action: "FLUTTER_NOTIFICATION_CLICK",
+            },
+            android: {
+                priority: "high",
+                notification: {
+                    channelId: "capsule_unlock",
+                    priority: "high",
+                    defaultSound: true,
+                    defaultVibrateTimings: true,
+                },
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: "default",
+                        badge: 1,
+                    },
+                },
+            },
+        });
+
+        logger.info(`📱 Notification sent to user ${userId}`);
+    } catch (error) {
+        logger.error(`❌ Error sending notification to ${userId}:`, error);
+    }
+}
+
+/**
+ * Trigger notification when capsule is unlocked
+ */
+export const onCapsuleUnlocked = onDocumentUpdated(
+    "capsules/{capsuleId}",
+    async (event) => {
+        const before = event.data?.before.data();
+        const after = event.data?.after.data();
+
+        if (!before || !after) return;
+
+        // Check if capsule was just unlocked
+        if (before.isLocked && !after.isLocked) {
+            logger.info(`🔓 Capsule ${event.params.capsuleId} was unlocked`);
+
+            await sendUnlockNotification(
+                after.recipientId,
+                after.title,
+                after.senderName,
+                event.params.capsuleId
+            );
+        }
+    }
+);
+
+/**
+ * Check location-based unlock
+ */
+export const checkLocationUnlock = onCall(async (request) => {
+    const { capsuleId, userLatitude, userLongitude } = request.data;
+
+    if (!capsuleId || userLatitude === undefined ||
+        userLongitude === undefined) {
+        throw new Error("Missing required parameters");
+    }
+
+    try {
+        const db = admin.firestore();
+        const capsuleDoc = await db.collection("capsules").doc(capsuleId).get();
+
+        if (!capsuleDoc.exists) {
+            throw new Error("Capsule not found");
+        }
+
+        const capsule = capsuleDoc.data();
+
+        if (!capsule) {
+            throw new Error("Capsule data is empty");
+        }
+
+        // Check if capsule is location-locked
+        if (!capsule.isLocationLocked || capsule.unlockType === "time") {
+            throw new Error("Capsule is not location-locked");
+        }
+
+        // Check if already unlocked
+        if (!capsule.isLocked) {
+            return { unlocked: true, distance: 0, alreadyUnlocked: true };
+        }
+
+        // Calculate distance using Haversine formula
+        const distance = calculateDistance(
+            userLatitude,
+            userLongitude,
+            capsule.unlockLocation.latitude,
+            capsule.unlockLocation.longitude
+        );
+
+        logger.info(`📍 Distance to unlock location: ${distance}m`);
+
+        // Check if within unlock radius
+        const unlockRadius = capsule.unlockRadius || 100; // default 100m
+
+        if (distance <= unlockRadius) {
+            // Unlock the capsule
+            await capsuleDoc.ref.update({
+                isLocked: false,
+                status: "unlocked",
+                unlockedAt: admin.firestore.Timestamp.now(),
+                updatedAt: admin.firestore.Timestamp.now(),
+            });
+
+            logger.info(`✅ Capsule ${capsuleId} unlocked by location`);
+
+            return { unlocked: true, distance, alreadyUnlocked: false };
+        }
+
+        return { unlocked: false, distance, required: unlockRadius };
+    } catch (error) {
+        logger.error("❌ Error checking location unlock:", error);
+        throw error;
+    }
+});
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @param {number} lat1 - Latitude of first point
+ * @param {number} lon1 - Longitude of first point
+ * @param {number} lat2 - Latitude of second point
+ * @param {number} lon2 - Longitude of second point
+ * @return {number} Distance in meters
+ */
+function calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+): number {
+    const R = 6371000; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+}
 
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
