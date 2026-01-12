@@ -634,7 +634,8 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true) {
+      if (!mounted) return;
       // Show loading
       showDialog(
         context: context,
@@ -647,10 +648,13 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
 
       if (mounted) {
         // Close loading dialog
+        // ignore: use_build_context_synchronously
         Navigator.pop(context);
         // Close detail screen
+        // ignore: use_build_context_synchronously
         Navigator.pop(context);
 
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Capsule deleted successfully')),
         );
