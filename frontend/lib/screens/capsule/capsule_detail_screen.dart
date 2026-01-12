@@ -1,10 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 import '../../models/capsule_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
+import '../../services/location_service.dart';
+import '../../services/storage_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CapsuleDetailScreen extends StatefulWidget {
   final CapsuleModel capsule;
@@ -23,16 +29,36 @@ class CapsuleDetailScreen extends StatefulWidget {
 class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
   Timer? _countdownTimer;
   Duration? _timeRemaining;
+  final _locationService = LocationService();
+  final _storageService = StorageService();
+  VideoPlayerController? _videoController;
+  bool _isCheckingLocation = false;
+  bool _isRecordingReaction = false;
+  double? _distanceToUnlock;
 
   @override
   void initState() {
     super.initState();
     _startCountdownTimer();
+    _initializeVideoPlayer();
+  }
+
+  void _initializeVideoPlayer() async {
+    if (widget.capsule.videoUrl != null && !widget.capsule.isLocked) {
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.capsule.videoUrl!),
+      );
+      await _videoController!.initialize();
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -270,23 +296,15 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
           ),
           if (widget.capsule.isTimeLocked &&
               _timeRemaining != null &&
-              _timeRemaining!.isNegative)
+              !_timeRemaining!.isNegative)
             Padding(
               padding: const EdgeInsets.only(top: 24),
-              child: ElevatedButton.icon(
-                onPressed: () => _checkUnlock(),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Check if Unlocked'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-              ),
+              child: _buildCountdownCard(),
             ),
+          if (widget.capsule.isLocationLocked) ...[
+            const SizedBox(height: 16),
+            _buildLocationUnlockCard(),
+          ],
         ],
       ),
     );
@@ -338,18 +356,161 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Content
-          if (widget.capsule.type == 'text') _buildTextContent(),
+          // Media content (image or video)
+          if (widget.capsule.imageUrl != null) _buildImageContent(),
+          if (widget.capsule.videoUrl != null) _buildVideoContent(),
 
-          // Media content (images/videos) - placeholder for now
-          if (widget.capsule.type == 'image' || widget.capsule.type == 'video')
-            _buildMediaPlaceholder(),
+          // Text message (caption for media types or standalone message)
+          if (widget.capsule.message != null &&
+              widget.capsule.message!.isNotEmpty)
+            _buildTextContent(),
+
+          // Reaction recording button for recipients
+          if (widget.capsule.recipientId ==
+                  Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  ).user?.userId &&
+              widget.capsule.reactionVideoUrl == null) ...[
+            const SizedBox(height: 24),
+            _buildRecordReactionButton(),
+          ],
 
           // Reaction video if exists
           if (widget.capsule.reactionVideoUrl != null) ...[
             const SizedBox(height: 32),
             _buildReactionSection(),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageContent() {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: CachedNetworkImage(
+              imageUrl: widget.capsule.imageUrl!,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                height: 300,
+                color: Colors.grey.withValues(alpha: 0.2),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => Container(
+                height: 300,
+                color: Colors.grey.withValues(alpha: 0.2),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Failed to load image',
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(Icons.image, color: Colors.blue[300], size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Image',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoContent() {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 300,
+            color: Colors.black,
+            child:
+                _videoController != null &&
+                    _videoController!.value.isInitialized
+                ? AspectRatio(
+                    aspectRatio: _videoController!.value.aspectRatio,
+                    child: VideoPlayer(_videoController!),
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Loading video...',
+                          style: TextStyle(color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.video_library,
+                      color: Colors.blue[300],
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Video',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_videoController != null &&
+                    _videoController!.value.isInitialized)
+                  IconButton(
+                    icon: Icon(
+                      _videoController!.value.isPlaying
+                          ? Icons.pause
+                          : Icons.play_arrow,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _videoController!.value.isPlaying
+                            ? _videoController!.pause()
+                            : _videoController!.play();
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -381,6 +542,108 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildRecordReactionButton() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.videocam, color: Colors.purple[300]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Record Your Reaction',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Capture your reaction to this time capsule! Record a video to share your thoughts with the sender.',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _isRecordingReaction ? null : _recordReaction,
+              icon: _isRecordingReaction
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.videocam),
+              label: Text(
+                _isRecordingReaction ? 'Uploading...' : 'Record Reaction Video',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _recordReaction() async {
+    setState(() {
+      _isRecordingReaction = true;
+    });
+
+    try {
+      // Record video using StorageService (30s limit)
+      final videoFile = await _storageService.recordVideoFromCamera();
+
+      if (videoFile == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Recording cancelled')));
+        }
+        return;
+      }
+
+      // Upload reaction video
+      final reactionUrl = await _storageService.uploadReactionVideo(
+        videoFile: videoFile,
+        capsuleId: widget.capsule.capsuleId,
+        userId: Provider.of<AuthProvider>(context, listen: false).user!.userId,
+      );
+
+      // Update capsule in Firestore
+      await Provider.of<CapsuleProvider>(
+        context,
+        listen: false,
+      ).addReactionToCapsule(widget.capsule.capsuleId, reactionUrl);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reaction video uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {}); // Refresh to show reaction
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to record reaction: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecordingReaction = false;
+        });
+      }
+    }
   }
 
   Widget _buildMediaPlaceholder() {
@@ -475,6 +738,226 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
     );
   }
 
+  Widget _buildLocationUnlockCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.location_on, color: Colors.blue[300]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Location-Based Unlock',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_distanceToUnlock != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _distanceToUnlock! <= widget.capsule.unlockRadius!
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.orange.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _distanceToUnlock! <= widget.capsule.unlockRadius!
+                        ? Colors.green.withValues(alpha: 0.5)
+                        : Colors.orange.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      _distanceToUnlock! < 1000
+                          ? '${_distanceToUnlock!.toStringAsFixed(0)} meters away'
+                          : '${(_distanceToUnlock! / 1000).toStringAsFixed(2)} km away',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Required: Within ${widget.capsule.unlockRadius} meters',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isCheckingLocation ? null : _checkLocationUnlock,
+                icon: _isCheckingLocation
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location),
+                label: Text(
+                  _distanceToUnlock == null
+                      ? 'Check Location'
+                      : _distanceToUnlock! <= widget.capsule.unlockRadius!
+                      ? 'Unlock Now'
+                      : 'Check Again',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      _distanceToUnlock != null &&
+                          _distanceToUnlock! <= widget.capsule.unlockRadius!
+                      ? Colors.green
+                      : Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
+            if (_distanceToUnlock == null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Click the button to check your distance to the unlock location',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkLocationUnlock() async {
+    setState(() {
+      _isCheckingLocation = true;
+    });
+
+    try {
+      // Get current location
+      final currentLocation = await _locationService.getCurrentPosition();
+
+      if (currentLocation == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Failed to get current location. Please enable location services.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Calculate distance to unlock location
+      final distance = _locationService.calculateDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        widget.capsule.unlockLatitude!,
+        widget.capsule.unlockLongitude!,
+      );
+
+      setState(() {
+        _distanceToUnlock = distance;
+      });
+
+      // Check if within unlock radius
+      if (distance <= widget.capsule.unlockRadius!) {
+        // User is within range - unlock the capsule
+        await _unlockCapsule();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                distance < 1000
+                    ? 'You are ${distance.toStringAsFixed(0)} meters away. Get closer to unlock!'
+                    : 'You are ${(distance / 1000).toStringAsFixed(2)} km away. Get closer to unlock!',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error checking location: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingLocation = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _unlockCapsule() async {
+    try {
+      // Update capsule status to unlocked
+      await Provider.of<CapsuleProvider>(
+        context,
+        listen: false,
+      ).unlockCapsule(widget.capsule.capsuleId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Capsule unlocked successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {}); // Refresh UI to show unlocked content
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to unlock capsule: $e')));
+      }
+    }
+  }
+
+  Widget _buildCountdownCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.timer, color: Colors.amber[300]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Time Remaining',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _formatDuration(_timeRemaining!),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.amber,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButtons(CapsuleProvider capsuleProvider) {
     if (widget.capsule.status == 'reacted') {
       return Padding(
@@ -527,7 +1010,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
   }
 
   String _getLockedMessage() {
-    if (widget.capsule.unlockType == 'both') {
+    if (widget.capsule.isTimeLocked && widget.capsule.isLocationLocked) {
       return 'This capsule requires both the correct time and location to unlock.';
     } else if (widget.capsule.isTimeLocked) {
       if (_timeRemaining != null && !_timeRemaining!.isNegative) {
@@ -563,23 +1046,16 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
   }
 
   void _checkUnlock() {
-    // TODO: Implement actual unlock check with cloud function
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Checking unlock status... (Cloud Functions coming soon)',
-        ),
-      ),
-    );
-  }
-
-  void _recordReaction() {
-    // TODO: Implement reaction recording
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reaction recording coming soon!'),
-        backgroundColor: Colors.pink,
-      ),
+    // Refresh the capsule from provider
+    Provider.of<CapsuleProvider>(context, listen: false).refreshCapsules().then(
+      (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Capsule status refreshed')),
+          );
+          setState(() {}); // Refresh UI
+        }
+      },
     );
   }
 
