@@ -41,7 +41,9 @@ class AuthService {
         displayName,
       );
 
+      print('📝 Creating Firestore document...');
       await _firestore.collection('users').doc(user.uid).set(userModel.toMap());
+      print('✅ Firestore document created!');
 
       return userModel;
     } on FirebaseAuthException catch (e) {
