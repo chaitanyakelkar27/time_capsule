@@ -41,12 +41,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDUVNew8iiQVjV8BaGrqxEfu-k2KukDXMw',
-    appId: '1:305746890699:web:4dce5b21d50e3ab362304e',
-    messagingSenderId: '305746890699',
-    projectId: 'authentication-1518e',
-    authDomain: 'authentication-1518e.firebaseapp.com',
-    storageBucket: 'authentication-1518e.firebasestorage.app',
+    apiKey: 'AIzaSyAYkiYuoXN3dBT-ZL8jLFslC9YSahH0xR0',
+    appId: '1:177675830046:web:c5da739d396b1ca2ae3f0f',
+    messagingSenderId: '177675830046',
+    projectId: 'time-capsule-c4c2a',
+    authDomain: 'time-capsule-c4c2a.firebaseapp.com',
+    storageBucket: 'time-capsule-c4c2a.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -58,30 +58,30 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB_OlSowpB4l16_CB7xuHUrFSzpvKU35HQ',
-    appId: '1:305746890699:ios:1b0a5b6c405c572f62304e',
-    messagingSenderId: '305746890699',
-    projectId: 'authentication-1518e',
-    storageBucket: 'authentication-1518e.firebasestorage.app',
+    apiKey: 'AIzaSyD_2ZgH89foet-mI8wgnFGt5F4uYD1G0QQ',
+    appId: '1:177675830046:ios:040067d3972335eaae3f0f',
+    messagingSenderId: '177675830046',
+    projectId: 'time-capsule-c4c2a',
+    storageBucket: 'time-capsule-c4c2a.firebasestorage.app',
     iosBundleId: 'com.example.frontend',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyB_OlSowpB4l16_CB7xuHUrFSzpvKU35HQ',
-    appId: '1:305746890699:ios:1b0a5b6c405c572f62304e',
-    messagingSenderId: '305746890699',
-    projectId: 'authentication-1518e',
-    storageBucket: 'authentication-1518e.firebasestorage.app',
+    apiKey: 'AIzaSyD_2ZgH89foet-mI8wgnFGt5F4uYD1G0QQ',
+    appId: '1:177675830046:ios:040067d3972335eaae3f0f',
+    messagingSenderId: '177675830046',
+    projectId: 'time-capsule-c4c2a',
+    storageBucket: 'time-capsule-c4c2a.firebasestorage.app',
     iosBundleId: 'com.example.frontend',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDUVNew8iiQVjV8BaGrqxEfu-k2KukDXMw',
-    appId: '1:305746890699:web:3249e4ea5d14596162304e',
-    messagingSenderId: '305746890699',
-    projectId: 'authentication-1518e',
-    authDomain: 'authentication-1518e.firebaseapp.com',
-    storageBucket: 'authentication-1518e.firebasestorage.app',
+    apiKey: 'AIzaSyAYkiYuoXN3dBT-ZL8jLFslC9YSahH0xR0',
+    appId: '1:177675830046:web:9ac8ca93f20dc848ae3f0f',
+    messagingSenderId: '177675830046',
+    projectId: 'time-capsule-c4c2a',
+    authDomain: 'time-capsule-c4c2a.firebaseapp.com',
+    storageBucket: 'time-capsule-c4c2a.firebasestorage.app',
   );
 
 }
