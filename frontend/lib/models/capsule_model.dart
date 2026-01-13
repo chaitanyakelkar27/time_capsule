@@ -172,6 +172,10 @@ class CapsuleModel {
   bool get isLocationLocked => unlockType == 'location' || unlockType == 'both';
   bool get hasReaction => reactionVideoUrl != null;
 
+  // Media URL getters
+  String? get imageUrl => type == 'image' ? mediaUrl : null;
+  String? get videoUrl => type == 'video' ? mediaUrl : null;
+
   // Calculate time remaining until unlock
   Duration? get timeUntilUnlock {
     if (unlockDate == null || !isLocked) return null;

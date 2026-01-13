@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +9,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
 import '../../services/location_service.dart';
 import '../../services/storage_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CapsuleDetailScreen extends StatefulWidget {
   final CapsuleModel capsule;
@@ -308,6 +306,188 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildCountdownCard() {
+    if (_timeRemaining == null) return const SizedBox.shrink();
+
+    return Card(
+      color: Colors.orange.withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.timer, color: Colors.orange[300]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Time Remaining',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _formatDuration(_timeRemaining!),
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationUnlockCard() {
+    return Card(
+      color:
+          _distanceToUnlock != null &&
+              _distanceToUnlock! <= (widget.capsule.unlockRadius ?? 100)
+          ? Colors.green.withValues(alpha: 0.1)
+          : Colors.orange.withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.location_on, color: Colors.orange[300]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Location Required',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'You must be within ${widget.capsule.unlockRadius?.toInt() ?? 100}m of the unlock location.',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            if (_distanceToUnlock != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Current distance: ${_distanceToUnlock! < 1000 ? "${_distanceToUnlock!.toStringAsFixed(0)}m" : "${(_distanceToUnlock! / 1000).toStringAsFixed(2)}km"}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color:
+                      _distanceToUnlock! <= (widget.capsule.unlockRadius ?? 100)
+                      ? Colors.green
+                      : Colors.orange,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _isCheckingLocation ? null : _checkLocationUnlock,
+              icon: _isCheckingLocation
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location),
+              label: Text(
+                _isCheckingLocation ? 'Checking...' : 'Check Location',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    _distanceToUnlock != null &&
+                        _distanceToUnlock! <=
+                            (widget.capsule.unlockRadius ?? 100)
+                    ? Colors.green
+                    : Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkLocationUnlock() async {
+    setState(() {
+      _isCheckingLocation = true;
+    });
+
+    try {
+      // Get current location
+      final position = await _locationService.getCurrentLocation();
+
+      if (position == null || widget.capsule.unlockLocation == null) {
+        throw Exception('Location not available');
+      }
+
+      // Calculate distance
+      final distance = _locationService.calculateDistance(
+        position.latitude,
+        position.longitude,
+        widget.capsule.unlockLocation!.latitude,
+        widget.capsule.unlockLocation!.longitude,
+      );
+
+      setState(() {
+        _distanceToUnlock = distance;
+      });
+
+      // Check if within radius
+      final unlockRadius = widget.capsule.unlockRadius ?? 100;
+      if (distance <= unlockRadius) {
+        // Unlock the capsule
+        await _unlockCapsule();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Capsule unlocked! You are at the right location.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'You are ${distance < 1000 ? "${distance.toStringAsFixed(0)}m" : "${(distance / 1000).toStringAsFixed(2)}km"} away. Get closer to unlock!',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error checking location: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingLocation = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _unlockCapsule() async {
+    await Provider.of<CapsuleProvider>(
+      context,
+      listen: false,
+    ).unlockCapsule(widget.capsule.capsuleId);
+
+    // Refresh the screen
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Widget _buildUnlockedContent() {
@@ -611,16 +791,19 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
 
       // Upload reaction video
       final reactionUrl = await _storageService.uploadReactionVideo(
-        videoFile: videoFile,
+        file: videoFile,
         capsuleId: widget.capsule.capsuleId,
-        userId: Provider.of<AuthProvider>(context, listen: false).user!.userId,
       );
 
       // Update capsule in Firestore
-      await Provider.of<CapsuleProvider>(
-        context,
-        listen: false,
-      ).addReactionToCapsule(widget.capsule.capsuleId, reactionUrl);
+      if (reactionUrl != null) {
+        await Provider.of<CapsuleProvider>(
+          context,
+          listen: false,
+        ).addReaction(widget.capsule.capsuleId, reactionUrl);
+      } else {
+        throw Exception('Failed to upload reaction video');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -644,42 +827,6 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         });
       }
     }
-  }
-
-  Widget _buildMediaPlaceholder() {
-    return Card(
-      child: Container(
-        height: 200,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              widget.capsule.type == 'image'
-                  ? Icons.image_outlined
-                  : Icons.video_library_outlined,
-              size: 64,
-              color: Colors.grey[600],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Media content coming soon',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-            if (widget.capsule.mediaUrl != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'URL: ${widget.capsule.mediaUrl}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildReactionSection() {
@@ -730,226 +877,6 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
                       ),
                   ],
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationUnlockCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.location_on, color: Colors.blue[300]),
-                const SizedBox(width: 8),
-                const Text(
-                  'Location-Based Unlock',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_distanceToUnlock != null) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _distanceToUnlock! <= widget.capsule.unlockRadius!
-                      ? Colors.green.withValues(alpha: 0.2)
-                      : Colors.orange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _distanceToUnlock! <= widget.capsule.unlockRadius!
-                        ? Colors.green.withValues(alpha: 0.5)
-                        : Colors.orange.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      _distanceToUnlock! < 1000
-                          ? '${_distanceToUnlock!.toStringAsFixed(0)} meters away'
-                          : '${(_distanceToUnlock! / 1000).toStringAsFixed(2)} km away',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Required: Within ${widget.capsule.unlockRadius} meters',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isCheckingLocation ? null : _checkLocationUnlock,
-                icon: _isCheckingLocation
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.my_location),
-                label: Text(
-                  _distanceToUnlock == null
-                      ? 'Check Location'
-                      : _distanceToUnlock! <= widget.capsule.unlockRadius!
-                      ? 'Unlock Now'
-                      : 'Check Again',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      _distanceToUnlock != null &&
-                          _distanceToUnlock! <= widget.capsule.unlockRadius!
-                      ? Colors.green
-                      : Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-            ),
-            if (_distanceToUnlock == null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Click the button to check your distance to the unlock location',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _checkLocationUnlock() async {
-    setState(() {
-      _isCheckingLocation = true;
-    });
-
-    try {
-      // Get current location
-      final currentLocation = await _locationService.getCurrentPosition();
-
-      if (currentLocation == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Failed to get current location. Please enable location services.',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-
-      // Calculate distance to unlock location
-      final distance = _locationService.calculateDistance(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        widget.capsule.unlockLatitude!,
-        widget.capsule.unlockLongitude!,
-      );
-
-      setState(() {
-        _distanceToUnlock = distance;
-      });
-
-      // Check if within unlock radius
-      if (distance <= widget.capsule.unlockRadius!) {
-        // User is within range - unlock the capsule
-        await _unlockCapsule();
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                distance < 1000
-                    ? 'You are ${distance.toStringAsFixed(0)} meters away. Get closer to unlock!'
-                    : 'You are ${(distance / 1000).toStringAsFixed(2)} km away. Get closer to unlock!',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error checking location: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckingLocation = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _unlockCapsule() async {
-    try {
-      // Update capsule status to unlocked
-      await Provider.of<CapsuleProvider>(
-        context,
-        listen: false,
-      ).unlockCapsule(widget.capsule.capsuleId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Capsule unlocked successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        setState(() {}); // Refresh UI to show unlocked content
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to unlock capsule: $e')));
-      }
-    }
-  }
-
-  Widget _buildCountdownCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.timer, color: Colors.amber[300]),
-                const SizedBox(width: 8),
-                const Text(
-                  'Time Remaining',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _formatDuration(_timeRemaining!),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.amber,
               ),
             ),
           ],
@@ -1043,20 +970,6 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
     } else {
       return '$seconds seconds';
     }
-  }
-
-  void _checkUnlock() {
-    // Refresh the capsule from provider
-    Provider.of<CapsuleProvider>(context, listen: false).refreshCapsules().then(
-      (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Capsule status refreshed')),
-          );
-          setState(() {}); // Refresh UI
-        }
-      },
-    );
   }
 
   Future<void> _skipReaction(CapsuleProvider capsuleProvider) async {

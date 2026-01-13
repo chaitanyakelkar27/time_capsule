@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/capsule_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
@@ -32,13 +33,13 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   bool _isLoadingUsers = true;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
-  
+
   // Media
-  File? _selectedImageFile;
-  File? _selectedVideoFile;
+  XFile? _selectedImageFile;
+  XFile? _selectedVideoFile;
   String? _imageUrl;
   String? _videoUrl;
-  
+
   // Location
   GeoPoint? _selectedLocation;
   double _unlockRadius = 100.0;
@@ -143,12 +144,13 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     if (position != null) {
       setState(() {
         _selectedLocation = GeoPoint(position.latitude, position.longitude);
-        _locationAddress = '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        _locationAddress =
+            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location captured! 📍')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Location captured! 📍')));
       }
     }
   }
@@ -183,8 +185,9 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       // Upload media if present
       if (_selectedImageFile != null) {
         _imageUrl = await _storageService.uploadCapsuleMedia(
-          _selectedImageFile!,
-          'image',
+          file: _selectedImageFile!,
+          capsuleId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+          type: 'image',
           onProgress: (progress) {
             setState(() => _uploadProgress = progress);
           },
@@ -193,8 +196,9 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
       if (_selectedVideoFile != null) {
         _videoUrl = await _storageService.uploadCapsuleMedia(
-          _selectedVideoFile!,
-          'video',
+          file: _selectedVideoFile!,
+          capsuleId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+          type: 'video',
           onProgress: (progress) {
             setState(() => _uploadProgress = progress);
           },
@@ -216,14 +220,14 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
         recipientName: _selectedRecipientName!,
         type: _capsuleType,
         title: _titleController.text.trim(),
-        message: _capsuleType == 'text' ? _messageController.text.trim() : null,
-        imageUrl: _imageUrl,
-        videoUrl: _videoUrl,
+        message: _messageController.text.trim().isNotEmpty
+            ? _messageController.text.trim()
+            : null,
+        mediaUrl: _imageUrl ?? _videoUrl,
         unlockType: _unlockType,
         unlockDate: _unlockType == 'time' ? _getCombinedDateTime() : null,
         unlockLocation: _unlockType == 'location' ? _selectedLocation : null,
         unlockRadius: _unlockType == 'location' ? _unlockRadius : null,
-        isLocationLocked: _unlockType == 'location',
         status: 'locked',
         isLocked: true,
         createdAt: DateTime.now(),
@@ -251,10 +255,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -337,7 +338,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
                                     child: Image.file(
-                                      _selectedImageFile!,
+                                      File(_selectedImageFile!.path),
                                       height: 200,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
@@ -383,8 +384,12 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                     ),
                                     Expanded(
                                       child: Text(
-                                        _selectedVideoFile!.path.split('/').last,
-                                        style: const TextStyle(color: Colors.white70),
+                                        _selectedVideoFile!.path
+                                            .split('/')
+                                            .last,
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
                                       ),
                                     ),
                                     IconButton(
@@ -411,14 +416,17 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     TextFormField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        labelText: _capsuleType == 'text' ? 'Message' : 'Caption (Optional)',
+                        labelText: _capsuleType == 'text'
+                            ? 'Message'
+                            : 'Caption (Optional)',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.message),
                         alignLabelWithHint: true,
                       ),
                       maxLines: 5,
                       validator: (value) {
-                        if (_capsuleType == 'text' && (value == null || value.isEmpty)) {
+                        if (_capsuleType == 'text' &&
+                            (value == null || value.isEmpty)) {
                           return 'Please enter a message';
                         }
                         return null;
@@ -549,10 +557,16 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.location_on, color: Colors.green),
+                                      const Icon(
+                                        Icons.location_on,
+                                        color: Colors.green,
+                                      ),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: Text(_locationAddress ?? 'Location captured'),
+                                        child: Text(
+                                          _locationAddress ??
+                                              'Location captured',
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -604,7 +618,8 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                               const SizedBox(height: 16),
                             ],
                             ElevatedButton.icon(
-                              onPressed: capsuleProvider.isLoading || _isUploading
+                              onPressed:
+                                  capsuleProvider.isLoading || _isUploading
                                   ? null
                                   : _createCapsule,
                               icon: (capsuleProvider.isLoading || _isUploading)
@@ -616,9 +631,15 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                       ),
                                     )
                                   : const Icon(Icons.lock),
-                              label: Text(_isUploading ? 'Uploading...' : 'Create Capsule'),
+                              label: Text(
+                                _isUploading
+                                    ? 'Uploading...'
+                                    : 'Create Capsule',
+                              ),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                               ),
                             ),
                           ],
@@ -630,7 +651,5 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
               ),
             ),
     );
-  }
-}
   }
 }
