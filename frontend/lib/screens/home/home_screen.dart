@@ -5,6 +5,7 @@ import '../../providers/capsule_provider.dart';
 import '../../widgets/capsule_card.dart';
 import '../capsule/create_capsule_screen.dart';
 import '../capsule/capsule_detail_screen.dart';
+import '../profile/profile_screen.dart';
 import '../auth/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,6 +18,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _searchQuery = '';
+  String _filterStatus = 'all'; // all, locked, unlocked
+  String _filterType = 'all'; // all, text, image, video
 
   @override
   void initState() {
@@ -67,7 +71,18 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Profile',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Sign Out',
             onPressed: () async {
               await authProvider.signOut();
               if (context.mounted) {
@@ -79,22 +94,32 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Sent Capsules
-          _buildCapsuleList(
-            capsuleProvider.sentCapsules,
-            isSent: true,
-            emptyMessage:
-                'No sent capsules yet.\nCreate your first time capsule!',
-          ),
-          // Received Capsules
-          _buildCapsuleList(
-            capsuleProvider.receivedCapsules,
-            isSent: false,
-            emptyMessage:
-                'No received capsules yet.\nWaiting for someone to send you a memory!',
+          // Search and Filter Bar
+          _buildSearchAndFilter(),
+
+          // Tab View
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Sent Capsules
+                _buildCapsuleList(
+                  _filterCapsules(capsuleProvider.sentCapsules),
+                  isSent: true,
+                  emptyMessage:
+                      'No sent capsules yet.\nCreate your first time capsule!',
+                ),
+                // Received Capsules
+                _buildCapsuleList(
+                  _filterCapsules(capsuleProvider.receivedCapsules),
+                  isSent: false,
+                  emptyMessage:
+                      'No received capsules yet.\nWaiting for someone to send you a memory!',
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -111,6 +136,161 @@ class _HomeScreenState extends State<HomeScreen>
         label: const Text('Create Capsule'),
       ),
     );
+  }
+
+  Widget _buildSearchAndFilter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.1),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Search Bar
+          TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search capsules...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.withValues(alpha: 0.1),
+              border: OutlinedInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip(
+                  label: 'All Status',
+                  selected: _filterStatus == 'all',
+                  onSelected: () => setState(() => _filterStatus = 'all'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Locked',
+                  icon: Icons.lock,
+                  selected: _filterStatus == 'locked',
+                  onSelected: () => setState(() => _filterStatus = 'locked'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Unlocked',
+                  icon: Icons.lock_open,
+                  selected: _filterStatus == 'unlocked',
+                  onSelected: () => setState(() => _filterStatus = 'unlocked'),
+                ),
+                const SizedBox(width: 16),
+                _buildFilterChip(
+                  label: 'All Types',
+                  selected: _filterType == 'all',
+                  onSelected: () => setState(() => _filterType = 'all'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Text',
+                  icon: Icons.text_fields,
+                  selected: _filterType == 'text',
+                  onSelected: () => setState(() => _filterType = 'text'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Image',
+                  icon: Icons.image,
+                  selected: _filterType == 'image',
+                  onSelected: () => setState(() => _filterType = 'image'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Video',
+                  icon: Icons.video_library,
+                  selected: _filterType == 'video',
+                  onSelected: () => setState(() => _filterType = 'video'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    IconData? icon,
+    required bool selected,
+    required VoidCallback onSelected,
+  }) {
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[Icon(icon, size: 16), const SizedBox(width: 4)],
+          Text(label),
+        ],
+      ),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      selectedColor: Colors.deepPurple.withValues(alpha: 0.3),
+      checkmarkColor: Colors.deepPurple,
+    );
+  }
+
+  List _filterCapsules(List capsules) {
+    return capsules.where((capsule) {
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        final titleMatch = capsule.title.toLowerCase().contains(_searchQuery);
+        final senderMatch = capsule.senderName.toLowerCase().contains(
+          _searchQuery,
+        );
+        final recipientMatch = capsule.recipientName.toLowerCase().contains(
+          _searchQuery,
+        );
+
+        if (!titleMatch && !senderMatch && !recipientMatch) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (_filterStatus == 'locked' && !capsule.isLocked) {
+        return false;
+      }
+      if (_filterStatus == 'unlocked' && capsule.isLocked) {
+        return false;
+      }
+
+      // Type filter
+      if (_filterType != 'all' && capsule.type != _filterType) {
+        return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   Widget _buildCapsuleList(
