@@ -171,8 +171,8 @@ class _HomeScreenState extends State<HomeScreen>
                   : null,
               filled: true,
               fillColor: Colors.grey.withValues(alpha: 0.1),
-              border: OutlinedInputBorder(
-                borderRadius: BorderRadius.circular(12),
+              border: OutlineInputBorder(
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
                 borderSide: BorderSide.none,
               ),
             ),

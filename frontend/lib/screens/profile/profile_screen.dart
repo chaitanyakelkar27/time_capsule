@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
 import 'statistics_screen.dart';
+import 'settings_screen.dart';
 import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -237,11 +238,9 @@ class ProfileScreen extends StatelessWidget {
           title: 'Notifications',
           subtitle: 'Manage notification preferences',
           onTap: () {
-            // TODO: Navigate to notification settings
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Notification settings coming soon!'),
-              ),
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
             );
           },
         ),
