@@ -80,22 +80,60 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildProfileHeader(String displayName, String email) {
     return Card(
-      child: Padding(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
         padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.deepPurple.withValues(alpha: 0.05),
+              Colors.blue.withValues(alpha: 0.05),
+            ],
+          ),
+        ),
         child: Column(
           children: [
-            // Avatar
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.deepPurple.withValues(alpha: 0.2),
-              child: Text(
-                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                style: const TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
+            // Avatar with image support
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.deepPurple.withValues(alpha: 0.2),
+                  backgroundImage: const AssetImage(
+                    'assets/images/profile_placeholder.png',
+                  ),
+                  onBackgroundImageError: (_, __) {},
+                  child: Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                    style: const TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
                 ),
-              ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -103,23 +141,43 @@ class ProfileScreen extends StatelessWidget {
             Text(
               displayName,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
 
             // Email
-            Text(
-              email,
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.email_outlined, size: 16, color: Colors.grey[400]),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    email,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Edit Profile Button
             OutlinedButton.icon(
               onPressed: () {
                 // TODO: Navigate to edit profile
               },
-              icon: const Icon(Icons.edit),
+              icon: const Icon(Icons.edit_outlined),
               label: const Text('Edit Profile'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
             ),
           ],
         ),
@@ -143,50 +201,47 @@ class ProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Statistics Grid
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
+        // Statistics Grid - Improved layout
+        Row(
           children: [
-            _buildStatCard(
-              icon: Icons.send,
-              label: 'Sent',
-              value: totalSent.toString(),
-              color: Colors.blue,
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.send_rounded,
+                label: 'Sent',
+                value: totalSent.toString(),
+                color: Colors.blue,
+              ),
             ),
-            _buildStatCard(
-              icon: Icons.inbox,
-              label: 'Received',
-              value: totalReceived.toString(),
-              color: Colors.green,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.inbox_rounded,
+                label: 'Received',
+                value: totalReceived.toString(),
+                color: Colors.green,
+              ),
             ),
-            _buildStatCard(
-              icon: Icons.lock_open,
-              label: 'Unlocked',
-              value: unlockedReceived.toString(),
-              color: Colors.orange,
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.lock_open_rounded,
+                label: 'Unlocked',
+                value: unlockedReceived.toString(),
+                color: Colors.orange,
+              ),
             ),
-            _buildStatCard(
-              icon: Icons.lock,
-              label: 'Locked',
-              value: lockedReceived.toString(),
-              color: Colors.purple,
-            ),
-            _buildStatCard(
-              icon: Icons.favorite,
-              label: 'Reactions',
-              value: withReactions.toString(),
-              color: Colors.pink,
-            ),
-            _buildStatCard(
-              icon: Icons.star,
-              label: 'Total',
-              value: (totalSent + totalReceived).toString(),
-              color: Colors.amber,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.lock_rounded,
+                label: 'Locked',
+                value: lockedReceived.toString(),
+                color: Colors.purple,
+              ),
             ),
           ],
         ),
@@ -201,21 +256,49 @@ class ProfileScreen extends StatelessWidget {
     required Color color,
   }) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.05),
+            ],
+          ),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 12),
             Text(
               value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

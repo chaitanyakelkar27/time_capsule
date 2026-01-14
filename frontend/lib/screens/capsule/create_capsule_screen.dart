@@ -65,11 +65,38 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       listen: false,
     );
 
-    final users = await capsuleProvider.getUsers(authProvider.user!.userId);
-    setState(() {
-      _users = users;
-      _isLoadingUsers = false;
-    });
+    try {
+      final users = await capsuleProvider.getUsers(authProvider.user!.userId);
+      print('Loaded ${users.length} users for recipient selection');
+      setState(() {
+        _users = users;
+        _isLoadingUsers = false;
+      });
+
+      if (users.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No other users found. Invite friends to join!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading users: $e');
+      setState(() {
+        _isLoadingUsers = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading users: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _selectDate() async {
@@ -148,9 +175,12 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Location captured! 📍')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location captured successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     }
   }
@@ -237,12 +267,32 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       final success = await capsuleProvider.createCapsule(capsule);
 
       if (success && mounted) {
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Capsule created successfully! 🎉'),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Capsule sent to ${_selectedRecipientName}!',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
+
+        // Print confirmation for debugging
+        print('Capsule created successfully!');
+        print('Sender: ${currentUser.userId}');
+        print('Recipient: $_selectedRecipientId ($_selectedRecipientName)');
+
+        // Navigate back to home screen
         Navigator.of(context).pop();
       } else if (mounted && capsuleProvider.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -276,7 +326,6 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Title
                     TextFormField(
@@ -437,18 +486,52 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     // Recipient Selection
                     DropdownButtonFormField<String>(
                       value: _selectedRecipientId,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Send To',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.person),
+                        helperText: _users.isEmpty
+                            ? 'No users available. Invite friends to join!'
+                            : 'Select who will receive this capsule',
                       ),
-                      hint: const Text('Select Recipient'),
-                      items: _users.map((user) {
-                        return DropdownMenuItem<String>(
-                          value: user['userId'],
-                          child: Text(user['displayName'] ?? user['email']),
-                        );
-                      }).toList(),
+                      hint: Text(
+                        _users.isEmpty
+                            ? 'No recipients available'
+                            : 'Select Recipient',
+                      ),
+                      items: _users.isEmpty
+                          ? null
+                          : _users.map((user) {
+                              return DropdownMenuItem<String>(
+                                value: user['userId'],
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Colors.deepPurple
+                                          .withValues(alpha: 0.2),
+                                      child: Text(
+                                        (user['displayName'] ??
+                                                user['email'])[0]
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.deepPurple,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      user['displayName'] ?? 'No name',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                       onChanged: (value) {
                         final selectedUser = _users.firstWhere(
                           (u) => u['userId'] == value,

@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TimeCapsule ⏰'),
+        title: const Text('TimeCapsule'),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -300,21 +300,47 @@ class _HomeScreenState extends State<HomeScreen>
   }) {
     if (capsules.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSent ? Icons.send_outlined : Icons.inbox_outlined,
-              size: 80,
-              color: Colors.grey[300],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              emptyMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.grey[400]),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Use image instead of icon
+              Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  image: DecorationImage(
+                    image: AssetImage(
+                      isSent
+                          ? 'assets/images/sent_empty.png'
+                          : 'assets/images/received_empty.png',
+                    ),
+                    fit: BoxFit.cover,
+                    onError: (_, __) {},
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    isSent ? Icons.send_rounded : Icons.inbox_rounded,
+                    size: 80,
+                    color: Colors.grey[300],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[400],
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

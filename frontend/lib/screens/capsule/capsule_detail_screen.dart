@@ -98,34 +98,39 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Status Header
-            _buildStatusHeader(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Status Header
+              _buildStatusHeader(),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Capsule Info
-            _buildInfoSection(),
+              // Capsule Info
+              _buildInfoSection(),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Content Area
-            if (widget.capsule.isLocked)
-              _buildLockedContent()
-            else
-              _buildUnlockedContent(),
+              // Content Area
+              if (widget.capsule.isLocked)
+                _buildLockedContent()
+              else
+                _buildUnlockedContent(),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Action Buttons
-            if (!widget.capsule.isLocked && isRecipient)
-              _buildActionButtons(capsuleProvider),
-
-            const SizedBox(height: 32),
-          ],
+              // Action Buttons
+              if (!widget.capsule.isLocked && isRecipient)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildActionButtons(capsuleProvider),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -275,8 +280,28 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         border: Border.all(color: Colors.grey.withValues(alpha: 0.3), width: 2),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.lock_clock, size: 80, color: Colors.grey[600]),
+          // Replace icon with image
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              image: const DecorationImage(
+                image: AssetImage('assets/images/lock_icon.png'),
+                fit: BoxFit.cover,
+                onError: null,
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.lock_clock_rounded,
+                size: 60,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             'This Capsule is Locked',
@@ -287,10 +312,12 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            _getLockedMessage(),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          Flexible(
+            child: Text(
+              _getLockedMessage(),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
           ),
           if (widget.capsule.isTimeLocked &&
               _timeRemaining != null &&
@@ -316,14 +343,18 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.timer, color: Colors.orange[300]),
+                Icon(Icons.timer_rounded, color: Colors.orange[300]),
                 const SizedBox(width: 8),
-                const Text(
-                  'Time Remaining',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const Flexible(
+                  child: Text(
+                    'Time Remaining',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -335,6 +366,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
                 fontWeight: FontWeight.bold,
                 color: Colors.orange,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -352,15 +384,19 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.location_on, color: Colors.orange[300]),
+                Icon(Icons.location_on_rounded, color: Colors.orange[300]),
                 const SizedBox(width: 8),
-                const Text(
-                  'Location Required',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const Flexible(
+                  child: Text(
+                    'Location Required',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -494,6 +530,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Unlocked banner
@@ -505,11 +542,13 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle, color: Colors.green),
+                const Icon(Icons.check_circle_rounded, color: Colors.green),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(

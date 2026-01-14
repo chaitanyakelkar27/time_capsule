@@ -18,10 +18,25 @@ class CapsuleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                capsule.isLocked
+                    ? Colors.amber.withValues(alpha: 0.03)
+                    : Colors.green.withValues(alpha: 0.03),
+                Colors.transparent,
+              ],
+            ),
+          ),
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,16 +46,19 @@ class CapsuleCard extends StatelessWidget {
                 children: [
                   // Lock Icon
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: capsule.isLocked
                           ? Colors.amber.withValues(alpha: 0.2)
                           : Colors.green.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      capsule.isLocked ? Icons.lock : Icons.lock_open,
+                      capsule.isLocked
+                          ? Icons.lock_rounded
+                          : Icons.lock_open_rounded,
                       color: capsule.isLocked ? Colors.amber : Colors.green,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -59,14 +77,30 @@ class CapsuleCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          isSent
-                              ? 'To: ${capsule.recipientName}'
-                              : 'From: ${capsule.senderName}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[400],
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              isSent
+                                  ? Icons.send_rounded
+                                  : Icons.person_rounded,
+                              size: 14,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                isSent
+                                    ? capsule.recipientName
+                                    : capsule.senderName,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[400],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -98,6 +132,8 @@ class CapsuleCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
                   Text(
                     DateFormat('MMM dd, yyyy').format(capsule.createdAt),
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
@@ -113,27 +149,32 @@ class CapsuleCard extends StatelessWidget {
 
   Widget _buildTypeBadge() {
     IconData icon;
+    Color color;
     switch (capsule.type) {
       case 'image':
-        icon = Icons.image;
+        icon = Icons.image_rounded;
+        color = Colors.blue;
         break;
       case 'video':
-        icon = Icons.videocam;
+        icon = Icons.videocam_rounded;
+        color = Colors.purple;
         break;
       case 'audio':
-        icon = Icons.audiotrack;
+        icon = Icons.audiotrack_rounded;
+        color = Colors.pink;
         break;
       default:
-        icon = Icons.text_fields;
+        icon = Icons.text_fields_rounded;
+        color = Colors.teal;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(icon, size: 16, color: Colors.blue),
+      child: Icon(icon, size: 18, color: color),
     );
   }
 

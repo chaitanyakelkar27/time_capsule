@@ -71,7 +71,7 @@ class StorageService {
     Function(double)? onProgress,
   }) async {
     try {
-      print('📤 Uploading file to: $folder/$fileName');
+      print('Uploading file to: $folder/$fileName');
 
       // Create reference
       final ref = _storage.ref().child('$folder/$fileName');

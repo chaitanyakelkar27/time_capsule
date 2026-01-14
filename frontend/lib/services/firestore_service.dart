@@ -7,6 +7,10 @@ class FirestoreService {
   // Create a new capsule
   Future<String> createCapsule(CapsuleModel capsule) async {
     try {
+      print(
+        'Creating capsule with senderId: ${capsule.senderId}, recipientId: ${capsule.recipientId}',
+      );
+
       final docRef = await _firestore
           .collection('capsules')
           .add(capsule.toMap());
@@ -14,24 +18,28 @@ class FirestoreService {
       // Update the capsule with its ID
       await docRef.update({'capsuleId': docRef.id});
 
+      print('Capsule created successfully with ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
+      print('Error creating capsule: $e');
       throw Exception('Failed to create capsule: $e');
     }
   }
 
   // Get capsules sent by a user
   Stream<List<CapsuleModel>> getSentCapsules(String userId) {
+    print('Listening to sent capsules for userId: $userId');
     return _firestore
         .collection('capsules')
         .where('senderId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          print('Received ${snapshot.docs.length} sent capsules');
+          return snapshot.docs
               .map((doc) => CapsuleModel.fromMap(doc.data()))
-              .toList(),
-        );
+              .toList();
+        });
   }
 
   // Get capsules received by a user
@@ -100,13 +108,16 @@ class FirestoreService {
   // Get all users (for selecting recipient)
   Future<List<Map<String, dynamic>>> getAllUsers(String currentUserId) async {
     try {
+      print('Fetching all users except: $currentUserId');
       final snapshot = await _firestore
           .collection('users')
           .where('userId', isNotEqualTo: currentUserId)
           .get();
 
+      print('Found ${snapshot.docs.length} users');
       return snapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
+      print('Error fetching users: $e');
       throw Exception('Failed to get users: $e');
     }
   }
