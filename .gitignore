@@ -9,6 +9,7 @@ IMPLEMENTATION_SUMMARY.md
 # Firebase
 firebase-debug.log
 .firebase/
+backend/public/
 
 # IDE
 .vscode/
