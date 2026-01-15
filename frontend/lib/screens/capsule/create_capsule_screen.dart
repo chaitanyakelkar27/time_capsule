@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
 import '../../services/storage_service.dart';
 import '../../services/location_service.dart';
+import '../../services/ai_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateCapsuleScreen extends StatefulWidget {
@@ -22,6 +23,8 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   final _messageController = TextEditingController();
   final _storageService = StorageService();
   final _locationService = LocationService();
+  final _aiService = AIService();
+  bool _isGeneratingAI = false;
 
   String _capsuleType = 'text';
   String _unlockType = 'time';
@@ -181,6 +184,86 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             backgroundColor: Colors.green,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _generateAIMessage() async {
+    setState(() => _isGeneratingAI = true);
+
+    try {
+      final messageContext = _titleController.text.isNotEmpty
+          ? _titleController.text
+          : 'a meaningful time capsule message';
+
+      final unlockInfo = _unlockType == 'time'
+          ? (_selectedDate != null
+                ? '${_selectedDate!.toString().split(' ')[0]}${_selectedTime != null ? ' at ${_selectedTime!.format(context)}' : ''}'
+                : 'future time')
+          : 'a special location';
+
+      final suggestion = await _aiService.suggestMessage(
+        context: messageContext,
+        recipientName: _selectedRecipientName ?? 'someone special',
+        unlockType: unlockInfo,
+      );
+
+      setState(() {
+        _messageController.text = suggestion;
+        _isGeneratingAI = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('AI message generated! ✨'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isGeneratingAI = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('AI generation failed: $e')));
+      }
+    }
+  }
+
+  Future<void> _enhanceMessage() async {
+    if (_messageController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Write a message first to enhance it')),
+      );
+      return;
+    }
+
+    setState(() => _isGeneratingAI = true);
+
+    try {
+      final enhanced = await _aiService.enhanceMessage(_messageController.text);
+      setState(() {
+        _messageController.text = enhanced;
+        _isGeneratingAI = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message enhanced! ✨'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isGeneratingAI = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Enhancement failed: $e')));
       }
     }
   }
@@ -462,24 +545,89 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     const SizedBox(height: 16),
 
                     // Message (only for text type or as caption)
-                    TextFormField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        labelText: _capsuleType == 'text'
-                            ? 'Message'
-                            : 'Caption (Optional)',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.message),
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 5,
-                      validator: (value) {
-                        if (_capsuleType == 'text' &&
-                            (value == null || value.isEmpty)) {
-                          return 'Please enter a message';
-                        }
-                        return null;
-                      },
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            labelText: _capsuleType == 'text'
+                                ? 'Message'
+                                : 'Caption (Optional)',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.message),
+                            alignLabelWithHint: true,
+                          ),
+                          maxLines: 5,
+                          validator: (value) {
+                            if (_capsuleType == 'text' &&
+                                (value == null || value.isEmpty)) {
+                              return 'Please enter a message';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _isGeneratingAI
+                                    ? null
+                                    : _generateAIMessage,
+                                icon: _isGeneratingAI
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.auto_awesome, size: 18),
+                                label: Text(
+                                  _isGeneratingAI
+                                      ? 'Generating...'
+                                      : 'AI Suggest',
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF8B5CF6),
+                                  side: const BorderSide(
+                                    color: Color(0xFF8B5CF6),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _isGeneratingAI
+                                    ? null
+                                    : _enhanceMessage,
+                                icon: _isGeneratingAI
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.stars, size: 18),
+                                label: Text(
+                                  _isGeneratingAI
+                                      ? 'Enhancing...'
+                                      : 'AI Enhance',
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFC084FC),
+                                  side: const BorderSide(
+                                    color: Color(0xFFC084FC),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
 

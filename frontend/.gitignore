@@ -12,6 +12,11 @@
 .swiftpm/
 migrate_working_dir/
 
+# Sensitive configuration files
+lib/services/config.dart
+.env
+.env.local
+
 # IntelliJ related
 *.iml
 *.ipr
