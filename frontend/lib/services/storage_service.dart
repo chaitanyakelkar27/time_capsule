@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
+import '../utils/app_logger.dart';
 
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -17,7 +18,7 @@ class StorageService {
         imageQuality: 85,
       );
     } catch (e) {
-      print('❌ Error picking image: $e');
+      AppLogger.error('❌ Error picking image: $e');
       return null;
     }
   }
@@ -32,7 +33,7 @@ class StorageService {
         imageQuality: 85,
       );
     } catch (e) {
-      print('❌ Error taking photo: $e');
+      AppLogger.error('❌ Error taking photo: $e');
       return null;
     }
   }
@@ -45,7 +46,7 @@ class StorageService {
         maxDuration: const Duration(seconds: 60),
       );
     } catch (e) {
-      print('❌ Error picking video: $e');
+      AppLogger.error('❌ Error picking video: $e');
       return null;
     }
   }
@@ -58,7 +59,7 @@ class StorageService {
         maxDuration: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('❌ Error recording video: $e');
+      AppLogger.error('❌ Error recording video: $e');
       return null;
     }
   }
@@ -71,7 +72,7 @@ class StorageService {
     Function(double)? onProgress,
   }) async {
     try {
-      print('Uploading file to: $folder/$fileName');
+      AppLogger.info('Uploading file to: $folder/$fileName');
 
       // Create reference
       final ref = _storage.ref().child('$folder/$fileName');
@@ -83,7 +84,9 @@ class StorageService {
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         final progress = snapshot.bytesTransferred / snapshot.totalBytes;
         onProgress?.call(progress);
-        print('📊 Upload progress: ${(progress * 100).toStringAsFixed(1)}%');
+        AppLogger.debug(
+          '📊 Upload progress: ${(progress * 100).toStringAsFixed(1)}%',
+        );
       });
 
       // Wait for completion
@@ -91,11 +94,11 @@ class StorageService {
 
       // Get download URL
       final downloadUrl = await ref.getDownloadURL();
-      print('✅ File uploaded successfully: $downloadUrl');
+      AppLogger.info('✅ File uploaded successfully: $downloadUrl');
 
       return downloadUrl;
     } catch (e) {
-      print('❌ Error uploading file: $e');
+      AppLogger.error('❌ Error uploading file: $e');
       return null;
     }
   }
@@ -140,10 +143,10 @@ class StorageService {
     try {
       final ref = _storage.refFromURL(fileUrl);
       await ref.delete();
-      print('✅ File deleted successfully');
+      AppLogger.info('✅ File deleted successfully');
       return true;
     } catch (e) {
-      print('❌ Error deleting file: $e');
+      AppLogger.error('❌ Error deleting file: $e');
       return false;
     }
   }
@@ -154,7 +157,7 @@ class StorageService {
       final ref = _storage.refFromURL(fileUrl);
       return await ref.getMetadata();
     } catch (e) {
-      print('❌ Error getting metadata: $e');
+      AppLogger.error('❌ Error getting metadata: $e');
       return null;
     }
   }
