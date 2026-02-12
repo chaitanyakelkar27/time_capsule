@@ -1,6 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math' show cos, sqrt, asin;
+import '../utils/app_logger.dart';
 
 class LocationService {
   // Check if location services are enabled
@@ -43,10 +44,12 @@ class LocationService {
 
       // Get position
       return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
     } catch (e) {
-      print('❌ Error getting location: $e');
+      AppLogger.error('❌ Error getting location: $e');
       return null;
     }
   }
@@ -100,8 +103,10 @@ class LocationService {
       targetLocation.longitude,
     );
 
-    print('📍 Current distance from target: ${distance.toStringAsFixed(2)}m');
-    print('📍 Required radius: ${radiusInMeters}m');
+    AppLogger.info(
+      '📍 Current distance from target: ${distance.toStringAsFixed(2)}m',
+    );
+    AppLogger.info('📍 Required radius: ${radiusInMeters}m');
 
     return distance <= radiusInMeters;
   }

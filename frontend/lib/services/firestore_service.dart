@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/capsule_model.dart';
+import '../utils/app_logger.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -7,7 +8,7 @@ class FirestoreService {
   // Create a new capsule
   Future<String> createCapsule(CapsuleModel capsule) async {
     try {
-      print(
+      AppLogger.info(
         'Creating capsule with senderId: ${capsule.senderId}, recipientId: ${capsule.recipientId}',
       );
 
@@ -18,24 +19,24 @@ class FirestoreService {
       // Update the capsule with its ID
       await docRef.update({'capsuleId': docRef.id});
 
-      print('Capsule created successfully with ID: ${docRef.id}');
+      AppLogger.info('Capsule created successfully with ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
-      print('Error creating capsule: $e');
+      AppLogger.error('Error creating capsule', e);
       throw Exception('Failed to create capsule: $e');
     }
   }
 
   // Get capsules sent by a user
   Stream<List<CapsuleModel>> getSentCapsules(String userId) {
-    print('Listening to sent capsules for userId: $userId');
+    AppLogger.debug('Listening to sent capsules for userId: $userId');
     return _firestore
         .collection('capsules')
         .where('senderId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          print('Received ${snapshot.docs.length} sent capsules');
+          AppLogger.debug('Received ${snapshot.docs.length} sent capsules');
           return snapshot.docs
               .map((doc) => CapsuleModel.fromMap(doc.data()))
               .toList();

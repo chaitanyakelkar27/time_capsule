@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/app_logger.dart';
 
 class NotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -16,7 +17,7 @@ class NotificationService {
         provisional: false,
       );
 
-      print(
+      AppLogger.info(
         '📱 Notification permission status: ${settings.authorizationStatus}',
       );
 
@@ -24,14 +25,14 @@ class NotificationService {
         // Get FCM token
         final token = await _messaging.getToken();
         if (token != null) {
-          print('📱 FCM Token: $token');
+          AppLogger.info('📱 FCM Token: $token');
           return;
         }
       }
 
-      print('⚠️ Notification permission denied');
+      AppLogger.info('⚠️ Notification permission denied');
     } catch (e) {
-      print('❌ Error initializing notifications: $e');
+      AppLogger.error('❌ Error initializing notifications: $e');
     }
   }
 
@@ -40,7 +41,7 @@ class NotificationService {
     try {
       return await _messaging.getToken();
     } catch (e) {
-      print('❌ Error getting FCM token: $e');
+      AppLogger.error('❌ Error getting FCM token: $e');
       return null;
     }
   }
@@ -54,10 +55,10 @@ class NotificationService {
           'fcmToken': token,
           'updatedAt': Timestamp.now(),
         });
-        print('✅ FCM token saved to Firestore');
+        AppLogger.info('✅ FCM token saved to Firestore');
       }
     } catch (e) {
-      print('❌ Error saving FCM token: $e');
+      AppLogger.error('❌ Error saving FCM token: $e');
     }
   }
 
@@ -68,18 +69,18 @@ class NotificationService {
   }) {
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('📩 Foreground message received:');
-      print('Title: ${message.notification?.title}');
-      print('Body: ${message.notification?.body}');
-      print('Data: ${message.data}');
+      AppLogger.info('📩 Foreground message received:');
+      AppLogger.info('Title: ${message.notification?.title}');
+      AppLogger.info('Body: ${message.notification?.body}');
+      AppLogger.info('Data: ${message.data}');
 
       onMessageReceived(message);
     });
 
     // Background message opened
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('📩 Background message opened:');
-      print('Data: ${message.data}');
+      AppLogger.info('📩 Background message opened:');
+      AppLogger.info('Data: ${message.data}');
 
       onMessageOpened(message);
     });
@@ -87,8 +88,8 @@ class NotificationService {
     // Check for initial message (app opened from terminated state)
     _messaging.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
-        print('📩 App opened from terminated state:');
-        print('Data: ${message.data}');
+        AppLogger.info('📩 App opened from terminated state:');
+        AppLogger.info('Data: ${message.data}');
         onMessageOpened(message);
       }
     });
@@ -98,9 +99,9 @@ class NotificationService {
   Future<void> subscribeToTopic(String topic) async {
     try {
       await _messaging.subscribeToTopic(topic);
-      print('✅ Subscribed to topic: $topic');
+      AppLogger.info('✅ Subscribed to topic: $topic');
     } catch (e) {
-      print('❌ Error subscribing to topic: $e');
+      AppLogger.error('❌ Error subscribing to topic: $e');
     }
   }
 
@@ -108,9 +109,9 @@ class NotificationService {
   Future<void> unsubscribeFromTopic(String topic) async {
     try {
       await _messaging.unsubscribeFromTopic(topic);
-      print('✅ Unsubscribed from topic: $topic');
+      AppLogger.info('✅ Unsubscribed from topic: $topic');
     } catch (e) {
-      print('❌ Error unsubscribing from topic: $e');
+      AppLogger.error('❌ Error unsubscribing from topic: $e');
     }
   }
 
@@ -118,9 +119,9 @@ class NotificationService {
   Future<void> deleteToken() async {
     try {
       await _messaging.deleteToken();
-      print('✅ FCM token deleted');
+      AppLogger.info('✅ FCM token deleted');
     } catch (e) {
-      print('❌ Error deleting token: $e');
+      AppLogger.error('❌ Error deleting token: $e');
     }
   }
 }
@@ -128,8 +129,8 @@ class NotificationService {
 // Background message handler (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('📩 Background message received:');
-  print('Title: ${message.notification?.title}');
-  print('Body: ${message.notification?.body}');
-  print('Data: ${message.data}');
+  AppLogger.info('📩 Background message received:');
+  AppLogger.info('Title: ${message.notification?.title}');
+  AppLogger.info('Body: ${message.notification?.body}');
+  AppLogger.info('Data: ${message.data}');
 }
