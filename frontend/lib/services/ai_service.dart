@@ -1,5 +1,6 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'config.dart'; // Import the config file
+import '../utils/app_logger.dart';
 
 class AIService {
   late final GenerativeModel _model;
@@ -25,7 +26,7 @@ class AIService {
       return response.text ??
           'Unable to generate suggestion. Please try again.';
     } catch (e) {
-      print('Error generating AI suggestion: $e');
+      AppLogger.error('Error generating AI suggestion', e);
       return 'AI suggestion unavailable. Please try again later.';
     }
   }
@@ -47,7 +48,7 @@ Enhanced version:''';
 
       return response.text ?? originalMessage;
     } catch (e) {
-      print('Error enhancing message: $e');
+      AppLogger.error('Error enhancing message', e);
       return originalMessage;
     }
   }
@@ -67,7 +68,7 @@ Caption:''';
 
       return response.text ?? 'A special moment captured in time.';
     } catch (e) {
-      print('Error generating caption: $e');
+      AppLogger.error('Error generating caption', e);
       return 'A special moment captured in time.';
     }
   }

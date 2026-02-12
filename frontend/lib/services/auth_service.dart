@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../utils/app_logger.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -19,14 +20,14 @@ class AuthService {
     required String displayName,
   }) async {
     try {
-      print('🔥 Attempting sign up for: $email');
-      print('🔥 Firebase Auth instance: ${_auth.app.name}');
+      AppLogger.info('🔥 Attempting sign up for: $email');
+      AppLogger.info('🔥 Firebase Auth instance: ${_auth.app.name}');
 
       // Create user in Firebase Auth
       final UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
-      print('✅ Sign up successful!');
+      AppLogger.info('✅ Sign up successful!');
 
       final User? user = userCredential.user;
       if (user == null) return null;
@@ -41,16 +42,16 @@ class AuthService {
         displayName,
       );
 
-      print('📝 Creating Firestore document...');
+      AppLogger.info('📝 Creating Firestore document...');
       await _firestore.collection('users').doc(user.uid).set(userModel.toMap());
-      print('✅ Firestore document created!');
+      AppLogger.info('✅ Firestore document created!');
 
       return userModel;
     } on FirebaseAuthException catch (e) {
-      print('❌ Firebase Auth Error: ${e.code} - ${e.message}');
+      AppLogger.error('❌ Firebase Auth Error: ${e.code} - ${e.message}', e);
       throw _handleAuthException(e);
     } catch (e) {
-      print('❌ Unknown Error: $e');
+      AppLogger.error('❌ Unknown Error during sign up', e);
       throw Exception('Failed to sign up: $e');
     }
   }
@@ -61,12 +62,12 @@ class AuthService {
     required String password,
   }) async {
     try {
-      print('🔥 Attempting sign in for: $email');
+      AppLogger.info('🔥 Attempting sign in for: $email');
 
       final UserCredential userCredential = await _auth
           .signInWithEmailAndPassword(email: email, password: password);
 
-      print('✅ Sign in successful!');
+      AppLogger.info('✅ Sign in successful!');
 
       final User? user = userCredential.user;
       if (user == null) return null;
