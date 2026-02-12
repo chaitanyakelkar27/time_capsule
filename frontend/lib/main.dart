@@ -10,6 +10,7 @@ import 'screens/home/home_screen.dart';
 import 'screens/capsule/capsule_detail_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firestore_service.dart';
+import 'utils/app_logger.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -112,12 +113,11 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
           );
         }
       } catch (e) {
-        print('Error navigating to capsule: $e');
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error opening capsule: $e')));
-        }
+        AppLogger.error('Error navigating to capsule', e);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error opening capsule: $e')));
       }
     }
   }

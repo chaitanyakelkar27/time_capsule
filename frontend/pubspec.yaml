@@ -41,6 +41,9 @@ dependencies:
   
   # AI
   google_generative_ai: ^0.4.6
+  
+  # Logging
+  logger: ^2.5.0
 
 dev_dependencies:
   flutter_test:
