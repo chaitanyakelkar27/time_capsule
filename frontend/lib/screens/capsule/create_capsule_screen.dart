@@ -8,6 +8,7 @@ import '../../providers/capsule_provider.dart';
 import '../../services/storage_service.dart';
 import '../../services/location_service.dart';
 import '../../services/ai_service.dart';
+import '../../utils/app_logger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateCapsuleScreen extends StatefulWidget {
@@ -70,7 +71,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
     try {
       final users = await capsuleProvider.getUsers(authProvider.user!.userId);
-      print('Loaded ${users.length} users for recipient selection');
+      AppLogger.info('Loaded ${users.length} users for recipient selection');
       setState(() {
         _users = users;
         _isLoadingUsers = false;
@@ -87,7 +88,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
         }
       }
     } catch (e) {
-      print('Error loading users: $e');
+      AppLogger.error('Error loading users', e);
       setState(() {
         _isLoadingUsers = false;
       });
@@ -370,12 +371,15 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
           ),
         );
 
-        // Print confirmation for debugging
-        print('Capsule created successfully!');
-        print('Sender: ${currentUser.userId}');
-        print('Recipient: $_selectedRecipientId ($_selectedRecipientName)');
+        // Log confirmation for debugging
+        AppLogger.info('Capsule created successfully!');
+        AppLogger.info('Sender: ${currentUser.userId}');
+        AppLogger.info(
+          'Recipient: $_selectedRecipientId ($_selectedRecipientName)',
+        );
 
         // Navigate back to home screen
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else if (mounted && capsuleProvider.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -782,7 +786,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
+                                    color: Colors.green.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: Colors.green),
                                   ),

@@ -835,7 +835,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
       );
 
       // Update capsule in Firestore
-      if (reactionUrl != null) {
+      if (reactionUrl != null && mounted) {
         await Provider.of<CapsuleProvider>(
           context,
           listen: false,
@@ -1065,14 +1065,18 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
     if (confirmed == true) {
       if (!mounted) return;
       // Show loading
+      final dialogContext = context;
       showDialog(
-        context: context,
+        context: dialogContext,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       // Delete capsule
       await capsuleProvider.deleteCapsule(widget.capsule.capsuleId);
+
+      if (!mounted) return;
+      Navigator.of(dialogContext).pop(); // Close loading dialog
 
       if (mounted) {
         // Close loading dialog
