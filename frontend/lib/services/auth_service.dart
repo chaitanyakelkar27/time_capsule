@@ -70,7 +70,12 @@ class AuthService {
       AppLogger.info('✅ Sign in successful!');
 
       final User? user = userCredential.user;
-      if (user == null) return null;
+      if (user == null) {
+        AppLogger.error('❌ User is null after sign in');
+        return null;
+      }
+
+      AppLogger.info('📖 Fetching user data from Firestore for: ${user.uid}');
 
       // Get user data from Firestore
       final DocumentSnapshot doc = await _firestore
@@ -79,13 +84,30 @@ class AuthService {
           .get();
 
       if (doc.exists) {
+        AppLogger.info('✅ User document found in Firestore');
         return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+      } else {
+        AppLogger.warning(
+          '⚠️ User document does not exist in Firestore, creating one...',
+        );
+        // Create user document if it doesn't exist
+        final userModel = UserModel(
+          user.uid,
+          user.email ?? '',
+          user.displayName ?? user.email?.split('@')[0] ?? 'User',
+        );
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .set(userModel.toMap());
+        AppLogger.info('✅ User document created');
+        return userModel;
       }
-
-      return null;
     } on FirebaseAuthException catch (e) {
+      AppLogger.error('❌ Firebase Auth Error: ${e.code} - ${e.message}', e);
       throw _handleAuthException(e);
     } catch (e) {
+      AppLogger.error('❌ Error during sign in: $e', e);
       throw Exception('Failed to sign in: $e');
     }
   }
