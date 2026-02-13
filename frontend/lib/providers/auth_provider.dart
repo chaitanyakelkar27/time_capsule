@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../utils/app_logger.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -12,16 +13,26 @@ class AuthProvider with ChangeNotifier {
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _user != null;
+  bool get isAuthenticated {
+    final authenticated = _user != null;
+    AppLogger.debug(
+      '🔐 isAuthenticated: $authenticated, user: ${_user?.email}',
+    );
+    return authenticated;
+  }
 
   AuthProvider() {
+    AppLogger.info('🔧 AuthProvider initialized');
     // Listen to auth state changes
     _authService.authStateChanges.listen((User? firebaseUser) async {
+      AppLogger.info('🔔 Auth state changed: ${firebaseUser?.email ?? "null"}');
       if (firebaseUser != null) {
         _user = await _authService.getUserData(firebaseUser.uid);
+        AppLogger.info('👤 User data loaded: ${_user?.email}');
         notifyListeners();
       } else {
         _user = null;
+        AppLogger.info('👤 User signed out');
         notifyListeners();
       }
     });
@@ -56,6 +67,7 @@ class AuthProvider with ChangeNotifier {
 
   // Sign in
   Future<bool> signIn({required String email, required String password}) async {
+    AppLogger.info('🔑 Starting sign in process...');
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -66,11 +78,14 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
       _isLoading = false;
+      final success = _user != null;
+      AppLogger.info('🔑 Sign in result: $success, user: ${_user?.email}');
       notifyListeners();
-      return _user != null;
+      return success;
     } catch (e) {
       _errorMessage = e.toString();
       _isLoading = false;
+      AppLogger.error('❌ Sign in failed: $e', e);
       notifyListeners();
       return false;
     }

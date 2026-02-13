@@ -124,16 +124,46 @@ class AuthService {
   // Get user data from Firestore
   Future<UserModel?> getUserData(String userId) async {
     try {
+      AppLogger.info('📖 Getting user data for: $userId');
+
       final DocumentSnapshot doc = await _firestore
           .collection('users')
           .doc(userId)
           .get();
 
       if (doc.exists) {
+        AppLogger.info('✅ User document exists');
         return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+      } else {
+        AppLogger.warning(
+          '⚠️ User document missing, creating from Firebase Auth...',
+        );
+
+        // Get user info from Firebase Auth
+        final User? currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          final userModel = UserModel(
+            currentUser.uid,
+            currentUser.email ?? '',
+            currentUser.displayName ??
+                currentUser.email?.split('@')[0] ??
+                'User',
+          );
+
+          // Create the document
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .set(userModel.toMap());
+          AppLogger.info('✅ User document created');
+          return userModel;
+        }
+
+        AppLogger.error('❌ No current user in Firebase Auth');
+        return null;
       }
-      return null;
     } catch (e) {
+      AppLogger.error('❌ Failed to get user data: $e', e);
       throw Exception('Failed to get user data: $e');
     }
   }
