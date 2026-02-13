@@ -28,38 +28,26 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      try {
-        final success = await authProvider.signIn(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+      final success = await authProvider.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      if (!success) {
+        // Show error message on failure
+        final errorMsg =
+            authProvider.errorMessage ?? 'Login failed. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
-
-        if (!mounted) return;
-
-        if (!success) {
-          // Show error message only on failure
-          final errorMsg =
-              authProvider.errorMessage ?? 'Login failed. Please try again.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
-        // Note: Navigation is handled automatically by Consumer in main.dart
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
       }
+      // Success: Consumer in main.dart will automatically navigate to HomeScreen
     }
   }
 

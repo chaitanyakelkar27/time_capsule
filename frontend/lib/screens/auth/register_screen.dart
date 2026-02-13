@@ -32,40 +32,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      try {
-        final success = await authProvider.signUp(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          displayName: _nameController.text.trim(),
+      final success = await authProvider.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        displayName: _nameController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (!success) {
+        // Show error message on failure
+        final errorMsg =
+            authProvider.errorMessage ??
+            'Registration failed. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
-
-        if (!mounted) return;
-
-        if (!success) {
-          // Show error message only on failure
-          final errorMsg =
-              authProvider.errorMessage ??
-              'Registration failed. Please try again.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
-        // Note: Navigation is handled automatically by Consumer in main.dart
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
       }
+      // Success: Consumer in main.dart will automatically navigate to HomeScreen
     }
   }
 
