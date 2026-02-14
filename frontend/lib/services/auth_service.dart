@@ -91,7 +91,7 @@ class AuthService {
           '⚠️ User document does not exist in Firestore, creating one...',
         );
         // Create user document if it doesn't exist
-        final userModel = UserModel(
+        final userModel = UserModel.fromFirebaseUser(
           user.uid,
           user.email ?? '',
           user.displayName ?? user.email?.split('@')[0] ?? 'User',
@@ -142,7 +142,7 @@ class AuthService {
         // Get user info from Firebase Auth
         final User? currentUser = _auth.currentUser;
         if (currentUser != null) {
-          final userModel = UserModel(
+          final userModel = UserModel.fromFirebaseUser(
             currentUser.uid,
             currentUser.email ?? '',
             currentUser.displayName ??

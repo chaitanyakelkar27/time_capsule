@@ -129,27 +129,28 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CapsuleProvider()),
       ],
-      child: MaterialApp(
-        title: 'TimeCapsule',
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navigatorKey,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        ),
-        home: Consumer<AuthProvider>(
-          builder: (context, authProvider, _) {
-            // Show login screen if not authenticated
-            if (!authProvider.isAuthenticated) {
-              return const LoginScreen();
-            }
-            // Show home screen if authenticated
-            return const HomeScreen();
-          },
-        ),
+      child: Consumer<AuthProvider>(
+        builder: (context, authProvider, _) {
+          AppLogger.debug(
+            '🏗️ Building MaterialApp - isAuthenticated: ${authProvider.isAuthenticated}',
+          );
+
+          return MaterialApp(
+            title: 'TimeCapsule',
+            debugShowCheckedModeBanner: false,
+            navigatorKey: navigatorKey,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.deepPurple,
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+            ),
+            home: authProvider.isAuthenticated
+                ? const HomeScreen()
+                : const LoginScreen(),
+          );
+        },
       ),
     );
   }
