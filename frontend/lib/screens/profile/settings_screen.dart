@@ -105,7 +105,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildSwitch(
           title: 'Capsule Unlock Alerts',
           subtitle: 'When a capsule becomes available',
@@ -114,7 +119,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? (value) => setState(() => _capsuleUnlockNotifications = value)
               : null,
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildSwitch(
           title: 'Reaction Notifications',
           subtitle: 'When someone reacts to your capsule',
@@ -138,7 +148,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           value: _locationBasedUnlocks,
           onChanged: (value) => setState(() => _locationBasedUnlocks = value),
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildRowItem(
           icon: Icons.lock_outline,
           title: 'Change Password',
@@ -148,14 +163,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildRowItem(
           icon: Icons.security_outlined,
           title: 'Two-Factor Authentication',
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('2FA coming soon!')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('2FA coming soon!')));
           },
         ),
       ],
@@ -173,7 +193,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: _selectedTheme,
           onTap: _showThemeDialog,
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildRowItem(
           icon: Icons.language_outlined,
           title: 'Language',
@@ -195,7 +220,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: 'Download all your capsules',
           onTap: _showExportDataDialog,
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildRowItem(
           icon: Icons.delete_sweep_outlined,
           title: 'Clear Cache',
@@ -220,7 +250,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildRowItem(
           icon: Icons.privacy_tip_outlined,
           title: 'Privacy Policy',
@@ -230,7 +265,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         _buildRowItem(
           icon: Icons.help_outline,
           title: 'Help & Support',
@@ -240,13 +280,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        const Divider(color: AppTheme.divider, height: 0, indent: 16, endIndent: 16),
+        const Divider(
+          color: AppTheme.divider,
+          height: 0,
+          indent: 16,
+          endIndent: 16,
+        ),
         Padding(
           padding: const EdgeInsets.all(16),
           child: Center(
             child: Column(
               children: [
-                Text('TimeCapsule', style: AppTheme.subheading.copyWith(color: AppTheme.textPrimary)),
+                Text(
+                  'TimeCapsule',
+                  style: AppTheme.subheading.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text('Version 1.0.0', style: AppTheme.label),
               ],
@@ -266,8 +316,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<bool>? onChanged,
   }) {
     return SwitchListTile(
-      title: Text(title, style: AppTheme.body.copyWith(color: AppTheme.textPrimary)),
-      subtitle: Text(subtitle, style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted)),
+      title: Text(
+        title,
+        style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted),
+      ),
       value: value,
       onChanged: onChanged,
       activeThumbColor: AppTheme.primary,
@@ -295,9 +351,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTheme.body.copyWith(color: AppTheme.textBody)),
+                  Text(
+                    title,
+                    style: AppTheme.body.copyWith(color: AppTheme.textBody),
+                  ),
                   if (subtitle != null)
-                    Text(subtitle, style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted)),
+                    Text(
+                      subtitle,
+                      style: AppTheme.body.copyWith(
+                        fontSize: 12,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -321,13 +386,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             RadioGroup<String>(
               groupValue: _selectedTheme,
               onChanged: (value) {
+                if (value == null) return;
                 setState(() => _selectedTheme = value);
                 Navigator.pop(dialogContext);
                 if (value != 'Dark') {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Theme feature coming soon!'),
-                    ),
+                    const SnackBar(content: Text('Theme feature coming soon!')),
                   );
                 }
               },
@@ -374,6 +438,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: RadioGroup<String>(
             groupValue: _selectedLanguage,
             onChanged: (value) {
+              if (value == null) return;
               setState(() => _selectedLanguage = value);
               Navigator.pop(dialogContext);
               if (value != 'English') {
