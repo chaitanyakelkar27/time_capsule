@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -7,11 +8,14 @@ import '../utils/app_logger.dart';
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   UserModel? _user;
+  StreamSubscription<User?>? _authSubscription;
   bool _isLoading = false;
+  bool _isInitialized = false;
   String? _errorMessage;
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated {
     final authenticated = _user != null;
@@ -23,12 +27,13 @@ class AuthProvider with ChangeNotifier {
 
   AuthProvider() {
     AppLogger.info('🔧 AuthProvider initialized');
-    // Listen to auth state changes
-    _authService.authStateChanges.listen(
+    // Listen to auth state changes.
+    _authSubscription = _authService.authStateChanges.listen(
       (User? firebaseUser) async {
         AppLogger.info(
           '🔔 Auth state changed: ${firebaseUser?.email ?? "null"}',
         );
+
         if (firebaseUser != null) {
           try {
             _user = await _authService.getUserData(firebaseUser.uid);
@@ -45,19 +50,35 @@ class AuthProvider with ChangeNotifier {
                   'User',
             );
           }
-          notifyListeners();
         } else {
           _user = null;
           AppLogger.info('👤 User signed out');
-          notifyListeners();
         }
+
+        if (!_isInitialized) {
+          _isInitialized = true;
+          AppLogger.info('✅ AuthProvider initial auth state resolved');
+        }
+
+        notifyListeners();
       },
       onError: (Object e) {
         AppLogger.error('❌ authStateChanges stream error: $e', e);
         _user = null;
+
+        if (!_isInitialized) {
+          _isInitialized = true;
+        }
+
         notifyListeners();
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   // Sign up

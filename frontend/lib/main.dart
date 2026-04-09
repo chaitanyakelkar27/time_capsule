@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
@@ -90,33 +91,32 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
 
   Future<void> _handleNotificationTap(RemoteMessage message) async {
     final capsuleId = message.data['capsuleId'] as String?;
-    final context = navigatorKey.currentContext;
+    if (capsuleId == null) {
+      return;
+    }
 
-    if (capsuleId != null && context != null) {
-      try {
-        final capsule = await _firestoreService.getCapsule(capsuleId);
+    try {
+      final capsule = await _firestoreService.getCapsule(capsuleId);
 
-        if (capsule != null) {
-          final authProvider = Provider.of<AuthProvider>(
-            context,
-            listen: false,
-          );
-          final isSent = capsule.senderId == authProvider.user?.userId;
+      if (capsule != null) {
+        final currentUserId = fb_auth.FirebaseAuth.instance.currentUser?.uid;
+        final isSent = capsule.senderId == currentUserId;
 
-          navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  CapsuleDetailScreen(capsule: capsule, isSent: isSent),
-            ),
-          );
-        }
-      } catch (e) {
-        AppLogger.error('Error navigating to capsule', e);
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error opening capsule: $e')));
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) =>
+                CapsuleDetailScreen(capsule: capsule, isSent: isSent),
+          ),
+        );
       }
+    } catch (e) {
+      AppLogger.error('Error navigating to capsule', e);
+      final context = navigatorKey.currentContext;
+      if (context == null || !context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error opening capsule: $e')));
     }
   }
 
@@ -133,17 +133,34 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
             'Building MaterialApp - isAuthenticated: ${authProvider.isAuthenticated}',
           );
 
+          final home = !authProvider.isInitialized
+              ? const StartupLoadingScreen()
+              : (authProvider.isAuthenticated
+                    ? const HomeScreen()
+                    : const LoginScreen());
+
           return MaterialApp(
-            key: ValueKey(authProvider.isAuthenticated),
             title: 'TimeCapsule',
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,
             theme: AppTheme.darkTheme,
-            home: authProvider.isAuthenticated
-                ? const HomeScreen()
-                : const LoginScreen(),
+            home: home,
           );
         },
+      ),
+    );
+  }
+}
+
+class StartupLoadingScreen extends StatelessWidget {
+  const StartupLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.scaffold,
+      body: const Center(
+        child: CircularProgressIndicator(color: AppTheme.primary),
       ),
     );
   }
