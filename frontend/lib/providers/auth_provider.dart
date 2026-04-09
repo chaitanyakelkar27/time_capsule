@@ -24,18 +24,40 @@ class AuthProvider with ChangeNotifier {
   AuthProvider() {
     AppLogger.info('🔧 AuthProvider initialized');
     // Listen to auth state changes
-    _authService.authStateChanges.listen((User? firebaseUser) async {
-      AppLogger.info('🔔 Auth state changed: ${firebaseUser?.email ?? "null"}');
-      if (firebaseUser != null) {
-        _user = await _authService.getUserData(firebaseUser.uid);
-        AppLogger.info('👤 User data loaded: ${_user?.email}');
-        notifyListeners();
-      } else {
+    _authService.authStateChanges.listen(
+      (User? firebaseUser) async {
+        AppLogger.info(
+          '🔔 Auth state changed: ${firebaseUser?.email ?? "null"}',
+        );
+        if (firebaseUser != null) {
+          try {
+            _user = await _authService.getUserData(firebaseUser.uid);
+            AppLogger.info('👤 User data loaded: ${_user?.email}');
+          } catch (e) {
+            AppLogger.warning(
+              '⚠️ Failed to load Firestore profile from auth state. Using Firebase Auth profile fallback.',
+            );
+            _user = UserModel.fromFirebaseUser(
+              firebaseUser.uid,
+              firebaseUser.email ?? '',
+              firebaseUser.displayName ??
+                  firebaseUser.email?.split('@')[0] ??
+                  'User',
+            );
+          }
+          notifyListeners();
+        } else {
+          _user = null;
+          AppLogger.info('👤 User signed out');
+          notifyListeners();
+        }
+      },
+      onError: (Object e) {
+        AppLogger.error('❌ authStateChanges stream error: $e', e);
         _user = null;
-        AppLogger.info('👤 User signed out');
         notifyListeners();
-      }
-    });
+      },
+    );
   }
 
   // Sign up

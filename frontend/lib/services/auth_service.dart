@@ -77,31 +77,43 @@ class AuthService {
 
       AppLogger.info('📖 Fetching user data from Firestore for: ${user.uid}');
 
-      // Get user data from Firestore
-      final DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      try {
+        // Get user data from Firestore
+        final DocumentSnapshot doc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
-      if (doc.exists) {
-        AppLogger.info('✅ User document found in Firestore');
-        return UserModel.fromMap(doc.data() as Map<String, dynamic>);
-      } else {
+        if (doc.exists) {
+          AppLogger.info('✅ User document found in Firestore');
+          return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+        }
+
         AppLogger.warning(
           '⚠️ User document does not exist in Firestore, creating one...',
         );
-        // Create user document if it doesn't exist
+
         final userModel = UserModel.fromFirebaseUser(
           user.uid,
           user.email ?? '',
           user.displayName ?? user.email?.split('@')[0] ?? 'User',
         );
+
         await _firestore
             .collection('users')
             .doc(user.uid)
             .set(userModel.toMap());
         AppLogger.info('✅ User document created');
         return userModel;
+      } catch (e) {
+        AppLogger.warning(
+          '⚠️ Firestore user profile unavailable during sign in. Continuing with Firebase Auth profile.',
+        );
+        return UserModel.fromFirebaseUser(
+          user.uid,
+          user.email ?? '',
+          user.displayName ?? user.email?.split('@')[0] ?? 'User',
+        );
       }
     } on FirebaseAuthException catch (e) {
       AppLogger.error('❌ Firebase Auth Error: ${e.code} - ${e.message}', e);
