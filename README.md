@@ -14,7 +14,7 @@ Live web app: https://time-capsule-c4c2a.web.app
 - Secure authentication with Firebase Auth (email/password)
 - Time-based and location-based capsule unlock rules
 - Capsule creation with text, image, or video content
-- AI-powered message suggestion and enhancement (Groq API)
+- AI-powered message suggestion and enhancement (Grok or Groq API)
 - Real-time sent/received capsule updates via Cloud Firestore
 - Push notifications and unlock alerts with Firebase Cloud Messaging
 - Reaction video workflow for recipients
@@ -120,7 +120,7 @@ APK output paths:
 - Firebase Cloud Functions v2 (TypeScript)
 - Firebase Cloud Messaging
 - Firebase Hosting
-- Groq Chat Completions API
+- Grok (xAI) / Groq Chat Completions API
 - Android Gradle toolchain
 
 ## Project Structure
