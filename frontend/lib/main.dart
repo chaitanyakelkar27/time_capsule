@@ -136,6 +136,7 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
           );
 
           return MaterialApp(
+            key: ValueKey(authProvider.isAuthenticated),
             title: 'TimeCapsule',
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
@@ -77,8 +78,24 @@ class StorageService {
       // Create reference
       final ref = _storage.ref().child('$folder/$fileName');
 
-      // Upload file
-      final uploadTask = ref.putFile(File(file.path));
+      late final UploadTask uploadTask;
+      if (kIsWeb) {
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty) {
+          AppLogger.error('❌ Selected web file is empty: ${file.name}');
+          return null;
+        }
+
+        uploadTask = ref.putData(bytes);
+      } else {
+        final fileOnDisk = File(file.path);
+        if (!await fileOnDisk.exists()) {
+          AppLogger.error('❌ File does not exist at path: ${file.path}');
+          return null;
+        }
+
+        uploadTask = ref.putFile(fileOnDisk);
+      }
 
       // Listen to progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
@@ -90,13 +107,24 @@ class StorageService {
       });
 
       // Wait for completion
-      await uploadTask;
+      final snapshot = await uploadTask;
+      if (snapshot.state != TaskState.success) {
+        AppLogger.error(
+          '❌ Upload did not complete successfully: ${snapshot.state}',
+        );
+        return null;
+      }
 
       // Get download URL
       final downloadUrl = await ref.getDownloadURL();
       AppLogger.info('✅ File uploaded successfully: $downloadUrl');
 
       return downloadUrl;
+    } on FirebaseException catch (e) {
+      AppLogger.error(
+        '❌ Firebase upload error [${e.code}]: ${e.message ?? 'Unknown Firebase storage error'}',
+      );
+      return null;
     } catch (e) {
       AppLogger.error('❌ Error uploading file: $e');
       return null;

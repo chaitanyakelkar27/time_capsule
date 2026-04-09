@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library so you can attach images and videos to your time capsule.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access so you can capture photos and videos for your time capsule.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access when recording videos for your time capsule.</string>
 </dict>
 </plist>

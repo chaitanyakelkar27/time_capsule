@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -40,6 +41,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
   // Media
   XFile? _selectedImageFile;
+  Uint8List? _selectedImageBytes;
   XFile? _selectedVideoFile;
   String? _imageUrl;
   String? _videoUrl;
@@ -142,32 +144,101 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
   Future<void> _pickImageFromGallery() async {
     final file = await _storageService.pickImageFromGallery();
+    if (!mounted) return;
+
     if (file != null) {
+      final bytes = kIsWeb ? await file.readAsBytes() : null;
       setState(() {
         _selectedImageFile = file;
+        _selectedImageBytes = bytes;
+        _selectedVideoFile = null;
         _capsuleType = 'image';
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No image selected. Please allow gallery access and try again.',
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _pickImageFromCamera() async {
     final file = await _storageService.pickImageFromCamera();
+    if (!mounted) return;
+
     if (file != null) {
+      final bytes = kIsWeb ? await file.readAsBytes() : null;
       setState(() {
         _selectedImageFile = file;
+        _selectedImageBytes = bytes;
+        _selectedVideoFile = null;
         _capsuleType = 'image';
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not capture image. Please allow camera access and try again.',
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _pickVideo() async {
     final file = await _storageService.pickVideoFromGallery();
+    if (!mounted) return;
+
     if (file != null) {
       setState(() {
         _selectedVideoFile = file;
+        _selectedImageFile = null;
+        _selectedImageBytes = null;
         _capsuleType = 'video';
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No video selected. Please allow gallery access and try again.',
+          ),
+        ),
+      );
     }
+  }
+
+  Widget _buildSelectedImagePreview() {
+    if (_selectedImageFile == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (kIsWeb) {
+      if (_selectedImageBytes != null) {
+        return Image.memory(
+          _selectedImageBytes!,
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        );
+      }
+
+      return Image.network(
+        _selectedImageFile!.path,
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return Image.file(
+      File(_selectedImageFile!.path),
+      height: 200,
+      width: double.infinity,
+      fit: BoxFit.cover,
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -293,7 +364,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       return;
     }
 
-    setState(() => _isUploading = true);
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+    });
 
     try {
       // Upload media if present
@@ -306,6 +380,12 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             setState(() => _uploadProgress = progress);
           },
         );
+
+        if (_imageUrl == null) {
+          throw Exception(
+            'Image upload failed. Please check your internet connection and storage permissions, then try again.',
+          );
+        }
       }
 
       if (_selectedVideoFile != null) {
@@ -317,7 +397,15 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             setState(() => _uploadProgress = progress);
           },
         );
+
+        if (_videoUrl == null) {
+          throw Exception(
+            'Video upload failed. Please check your internet connection and storage permissions, then try again.',
+          );
+        }
       }
+
+      if (!mounted) return;
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final capsuleProvider = Provider.of<CapsuleProvider>(
@@ -360,7 +448,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Capsule sent to ${_selectedRecipientName}!',
+                    'Capsule sent to $_selectedRecipientName!',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -473,12 +561,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(_selectedImageFile!.path),
-                                      height: 200,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
+                                    child: _buildSelectedImagePreview(),
                                   ),
                                   Positioned(
                                     top: 8,
@@ -487,6 +570,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                                       onPressed: () {
                                         setState(() {
                                           _selectedImageFile = null;
+                                          _selectedImageBytes = null;
                                           _capsuleType = 'text';
                                         });
                                       },
@@ -637,7 +721,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
                     // Recipient Selection
                     DropdownButtonFormField<String>(
-                      value: _selectedRecipientId,
+                      initialValue: _selectedRecipientId,
                       decoration: InputDecoration(
                         labelText: 'Send To',
                         border: const OutlineInputBorder(),
@@ -704,7 +788,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
                     // Unlock Type
                     DropdownButtonFormField<String>(
-                      value: _unlockType,
+                      initialValue: _unlockType,
                       decoration: const InputDecoration(
                         labelText: 'Unlock Type',
                         border: OutlineInputBorder(),

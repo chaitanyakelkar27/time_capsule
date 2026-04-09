@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../home/home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -52,8 +53,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             duration: const Duration(seconds: 4),
           ),
         );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
       }
-      // Success: Consumer in main.dart will automatically navigate to HomeScreen
     }
   }
 
