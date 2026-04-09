@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
@@ -51,7 +52,12 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             // ── Avatar & Info ─────────────────────────
-            _buildProfileHeader(user.displayName, user.email),
+            _buildProfileHeader(
+              context,
+              user.displayName,
+              user.email,
+              user.userId,
+            ),
             const SizedBox(height: 20),
 
             // ── Stats Grid ───────────────────────────
@@ -91,7 +97,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(String displayName, String email) {
+  Widget _buildProfileHeader(
+    BuildContext context,
+    String displayName,
+    String email,
+    String userId,
+  ) {
     final initials = displayName.isNotEmpty
         ? displayName
               .trim()
@@ -129,7 +140,61 @@ class ProfileScreen extends StatelessWidget {
           style: AppTheme.body.copyWith(fontSize: 13, color: AppTheme.textMuted),
           textAlign: TextAlign.center,
         ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.cardBg,
+            borderRadius: BorderRadius.circular(AppTheme.radiusInput),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.badge_outlined,
+                size: 16,
+                color: AppTheme.textMuted,
+              ),
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 210),
+                child: Text(
+                  'Contact ID: $userId',
+                  style: AppTheme.body.copyWith(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: () => _copyContactId(context, userId),
+                icon: const Icon(
+                  Icons.copy_outlined,
+                  size: 16,
+                  color: AppTheme.textMuted,
+                ),
+                tooltip: 'Copy Contact ID',
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Future<void> _copyContactId(BuildContext context, String userId) async {
+    await Clipboard.setData(ClipboardData(text: userId));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Contact ID copied'),
+        backgroundColor: AppTheme.success,
+      ),
     );
   }
 
