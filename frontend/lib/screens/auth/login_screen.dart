@@ -55,6 +55,88 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleForgotPassword() async {
+    final formKey = GlobalKey<FormState>();
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+
+    final submittedEmail = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              hintText: 'Enter your account email',
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter your email';
+              }
+              if (!value.contains('@')) {
+                return 'Please enter a valid email';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) {
+                return;
+              }
+              Navigator.of(dialogContext).pop(emailController.text.trim());
+            },
+            child: const Text('Send Link'),
+          ),
+        ],
+      ),
+    );
+
+    emailController.dispose();
+
+    if (submittedEmail == null || submittedEmail.isEmpty) {
+      return;
+    }
+
+    if (!mounted) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.resetPassword(submittedEmail);
+
+    if (!mounted) return;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Password reset link sent to $submittedEmail'),
+          backgroundColor: AppTheme.success,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final errorMessage =
+        authProvider.errorMessage ?? 'Failed to send password reset email.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage),
+        backgroundColor: AppTheme.error,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,7 +181,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(
@@ -124,7 +208,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(
@@ -158,9 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          // TODO: navigate to forgot password
-                        },
+                        onPressed: _handleForgotPassword,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         ),
@@ -179,8 +263,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     Consumer<AuthProvider>(
                       builder: (context, authProvider, child) {
                         return FilledButton(
-                          onPressed:
-                              authProvider.isLoading ? null : _handleLogin,
+                          onPressed: authProvider.isLoading
+                              ? null
+                              : _handleLogin,
                           child: authProvider.isLoading
                               ? const SizedBox(
                                   height: 20,
