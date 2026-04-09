@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/capsule_card.dart';
 import '../capsule/create_capsule_screen.dart';
 import '../capsule/capsule_detail_screen.dart';
 import '../profile/profile_screen.dart';
-import '../auth/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,19 +15,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String _searchQuery = '';
-  String _filterStatus = 'all'; // all, locked, unlocked
-  String _filterType = 'all'; // all, text, image, video
+class _HomeScreenState extends State<HomeScreen> {
+  int _activeTab = 0; // 0 = Sent, 1 = Received
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-
-    // Listen to capsules
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final capsuleProvider = Provider.of<CapsuleProvider>(
@@ -42,255 +35,168 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  String _getUserInitials(String displayName) {
+    if (displayName.isEmpty) return 'U';
+    return displayName
+        .trim()
+        .split(' ')
+        .take(2)
+        .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+        .join();
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
     final capsuleProvider = Provider.of<CapsuleProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+    final initials = _getUserInitials(user?.displayName ?? '');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('TimeCapsule'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              icon: const Icon(Icons.send),
-              text: 'Sent (${capsuleProvider.sentCapsules.length})',
+      backgroundColor: AppTheme.scaffold,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── App Bar ──────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: [
+                  Text('TimeCapsule', style: AppTheme.heading.copyWith(fontSize: 17, fontWeight: FontWeight.w500)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppTheme.divider,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          initials,
+                          style: AppTheme.label.copyWith(
+                            fontSize: 12,
+                            color: AppTheme.textPrimary,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Tab(
-              icon: const Icon(Icons.inbox),
-              text: 'Received (${capsuleProvider.receivedCapsules.length})',
+            const SizedBox(height: 8),
+
+            // ── Segmented Toggle ─────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBg,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                ),
+                child: Row(
+                  children: [
+                    _buildToggle(
+                      'Sent (${capsuleProvider.sentCapsules.length})',
+                      0,
+                    ),
+                    _buildToggle(
+                      'Received (${capsuleProvider.receivedCapsules.length})',
+                      1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Capsule List ─────────────────────────
+            Expanded(
+              child: _activeTab == 0
+                  ? _buildCapsuleList(
+                      capsuleProvider.sentCapsules,
+                      isSent: true,
+                      emptyMessage: 'No sent capsules yet',
+                    )
+                  : _buildCapsuleList(
+                      capsuleProvider.receivedCapsules,
+                      isSent: false,
+                      emptyMessage: 'No received capsules yet',
+                    ),
+            ),
+
+            // ── New Capsule Button ───────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreateCapsuleScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add, size: 20),
+                  label: const Text('New Capsule'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                    ),
+                    textStyle: AppTheme.subheading.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: 'Profile',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              await authProvider.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Search and Filter Bar
-          _buildSearchAndFilter(),
-
-          // Tab View
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Sent Capsules
-                _buildCapsuleList(
-                  _filterCapsules(capsuleProvider.sentCapsules),
-                  isSent: true,
-                  emptyMessage:
-                      'No sent capsules yet.\nCreate your first time capsule!',
-                ),
-                // Received Capsules
-                _buildCapsuleList(
-                  _filterCapsules(capsuleProvider.receivedCapsules),
-                  isSent: false,
-                  emptyMessage:
-                      'No received capsules yet.\nWaiting for someone to send you a memory!',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateCapsuleScreen(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Create Capsule'),
       ),
     );
   }
 
-  Widget _buildSearchAndFilter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+  Widget _buildToggle(String text, int index) {
+    final isActive = _activeTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive ? AppTheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+          ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: AppTheme.body.copyWith(
+              fontSize: 13,
+              fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+              color: isActive ? Colors.white : AppTheme.textMuted,
+            ),
+          ),
         ),
       ),
-      child: Column(
-        children: [
-          // Search Bar
-          TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value.toLowerCase();
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search capsules...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.grey.withValues(alpha: 0.1),
-              border: OutlineInputBorder(
-                borderRadius: const BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  label: 'All Status',
-                  selected: _filterStatus == 'all',
-                  onSelected: () => setState(() => _filterStatus = 'all'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Locked',
-                  icon: Icons.lock,
-                  selected: _filterStatus == 'locked',
-                  onSelected: () => setState(() => _filterStatus = 'locked'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Unlocked',
-                  icon: Icons.lock_open,
-                  selected: _filterStatus == 'unlocked',
-                  onSelected: () => setState(() => _filterStatus = 'unlocked'),
-                ),
-                const SizedBox(width: 16),
-                _buildFilterChip(
-                  label: 'All Types',
-                  selected: _filterType == 'all',
-                  onSelected: () => setState(() => _filterType = 'all'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Text',
-                  icon: Icons.text_fields,
-                  selected: _filterType == 'text',
-                  onSelected: () => setState(() => _filterType = 'text'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Image',
-                  icon: Icons.image,
-                  selected: _filterType == 'image',
-                  onSelected: () => setState(() => _filterType = 'image'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Video',
-                  icon: Icons.video_library,
-                  selected: _filterType == 'video',
-                  onSelected: () => setState(() => _filterType = 'video'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    IconData? icon,
-    required bool selected,
-    required VoidCallback onSelected,
-  }) {
-    return FilterChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[Icon(icon, size: 16), const SizedBox(width: 4)],
-          Text(label),
-        ],
-      ),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      selectedColor: Colors.deepPurple.withValues(alpha: 0.3),
-      checkmarkColor: Colors.deepPurple,
-    );
-  }
-
-  List _filterCapsules(List capsules) {
-    return capsules.where((capsule) {
-      // Search filter
-      if (_searchQuery.isNotEmpty) {
-        final titleMatch = capsule.title.toLowerCase().contains(_searchQuery);
-        final senderMatch = capsule.senderName.toLowerCase().contains(
-          _searchQuery,
-        );
-        final recipientMatch = capsule.recipientName.toLowerCase().contains(
-          _searchQuery,
-        );
-
-        if (!titleMatch && !senderMatch && !recipientMatch) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (_filterStatus == 'locked' && !capsule.isLocked) {
-        return false;
-      }
-      if (_filterStatus == 'unlocked' && capsule.isLocked) {
-        return false;
-      }
-
-      // Type filter
-      if (_filterType != 'all' && capsule.type != _filterType) {
-        return false;
-      }
-
-      return true;
-    }).toList();
   }
 
   Widget _buildCapsuleList(
@@ -301,43 +207,37 @@ class _HomeScreenState extends State<HomeScreen>
     if (capsules.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.all(28.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Use image instead of icon
               Container(
-                width: 200,
-                height: 200,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  image: DecorationImage(
-                    image: AssetImage(
-                      isSent
-                          ? 'assets/images/sent_empty.png'
-                          : 'assets/images/received_empty.png',
-                    ),
-                    fit: BoxFit.cover,
-                    onError: (_, __) {},
-                  ),
+                  color: AppTheme.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.divider),
                 ),
-                child: Center(
-                  child: Icon(
-                    isSent ? Icons.send_rounded : Icons.inbox_rounded,
-                    size: 80,
-                    color: Colors.grey[300],
-                  ),
+                child: Icon(
+                  isSent
+                      ? Icons.send_outlined
+                      : Icons.mark_email_unread_outlined,
+                  size: 32,
+                  color: AppTheme.textMuted,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
                 emptyMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[400],
-                  height: 1.5,
-                ),
+                style: AppTheme.heading.copyWith(fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Create a capsule to start building your timeline.',
+                textAlign: TextAlign.center,
+                style: AppTheme.body.copyWith(color: AppTheme.textMuted),
               ),
             ],
           ),
@@ -346,6 +246,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: capsules.length,
       itemBuilder: (context, index) {
         final capsule = capsules[index];

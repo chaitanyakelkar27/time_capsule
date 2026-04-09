@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capsule_provider.dart';
+import '../../theme/app_theme.dart';
 import 'statistics_screen.dart';
 import 'settings_screen.dart';
 import '../auth/login_screen.dart';
@@ -16,62 +17,74 @@ class ProfileScreen extends StatelessWidget {
     final user = authProvider.user;
 
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Not logged in')));
+      return Scaffold(
+        backgroundColor: AppTheme.scaffold,
+        body: Center(
+          child: Text('Not logged in', style: AppTheme.body),
+        ),
+      );
     }
 
-    // Calculate statistics
     final totalSent = capsuleProvider.sentCapsules.length;
     final totalReceived = capsuleProvider.receivedCapsules.length;
     final unlockedReceived = capsuleProvider.receivedCapsules
         .where((c) => !c.isLocked)
         .length;
     final lockedReceived = totalReceived - unlockedReceived;
-    final withReactions = capsuleProvider.receivedCapsules
-        .where((c) => c.hasReaction)
-        .length;
 
     return Scaffold(
+      backgroundColor: AppTheme.scaffold,
       appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: Navigate to settings screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon!')),
-              );
-            },
-          ),
-        ],
+        backgroundColor: AppTheme.scaffold,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Profile',
+          style: AppTheme.heading.copyWith(fontSize: 17, fontWeight: FontWeight.w500),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         child: Column(
           children: [
-            // Profile Header
+            // ── Avatar & Info ─────────────────────────
             _buildProfileHeader(user.displayName, user.email),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 32),
-
-            // Statistics Cards
-            _buildStatisticsSection(
+            // ── Stats Grid ───────────────────────────
+            _buildStatsGrid(
               totalSent: totalSent,
               totalReceived: totalReceived,
               unlockedReceived: unlockedReceived,
               lockedReceived: lockedReceived,
-              withReactions: withReactions,
             ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 32),
+            // ── Settings List ────────────────────────
+            _buildSettingsList(context),
+            const SizedBox(height: 12),
 
-            // Quick Actions
-            _buildQuickActions(context),
+            // ── Stats Link ───────────────────────────
+            _buildSettingsItem(
+              context,
+              icon: Icons.bar_chart_outlined,
+              title: 'Advanced Statistics',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const StatisticsScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
 
-            const SizedBox(height: 32),
-
-            // Account Actions
-            _buildAccountActions(context, authProvider),
+            // ── Account Actions ──────────────────────
+            _buildAccountSection(context, authProvider),
           ],
         ),
       ),
@@ -79,374 +92,210 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(String displayName, String email) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.withValues(alpha: 0.05),
-              Colors.blue.withValues(alpha: 0.05),
-            ],
+    final initials = displayName.isNotEmpty
+        ? displayName
+              .trim()
+              .split(' ')
+              .take(2)
+              .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+              .join()
+        : 'U';
+
+    return Column(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: const BoxDecoration(
+            color: AppTheme.divider,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              initials,
+              style: AppTheme.heading.copyWith(fontSize: 22),
+            ),
           ),
         ),
-        child: Column(
-          children: [
-            // Avatar with image support
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.deepPurple.withValues(alpha: 0.2),
-                  backgroundImage: const AssetImage(
-                    'assets/images/profile_placeholder.png',
-                  ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Text(
-                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Name
-            Text(
-              displayName,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-
-            // Email
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.email_outlined, size: 16, color: Colors.grey[400]),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    email,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Edit Profile Button
-            OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Navigate to edit profile
-              },
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit Profile'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 12),
+        Text(
+          displayName,
+          style: AppTheme.heading.copyWith(fontSize: 18),
+          textAlign: TextAlign.center,
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          email,
+          style: AppTheme.body.copyWith(fontSize: 13, color: AppTheme.textMuted),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 
-  Widget _buildStatisticsSection({
+  Widget _buildStatsGrid({
     required int totalSent,
     required int totalReceived,
     required int unlockedReceived,
     required int lockedReceived,
-    required int withReactions,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Your Statistics',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-
-        // Statistics Grid - Improved layout
         Row(
           children: [
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.send_rounded,
-                label: 'Sent',
-                value: totalSent.toString(),
-                color: Colors.blue,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.inbox_rounded,
-                label: 'Received',
-                value: totalReceived.toString(),
-                color: Colors.green,
-              ),
-            ),
+            Expanded(child: _buildStatTile('SENT', totalSent)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildStatTile('RECEIVED', totalReceived)),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.lock_open_rounded,
-                label: 'Unlocked',
-                value: unlockedReceived.toString(),
-                color: Colors.orange,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.lock_rounded,
-                label: 'Locked',
-                value: lockedReceived.toString(),
-                color: Colors.purple,
-              ),
-            ),
+            Expanded(child: _buildStatTile('LOCKED', lockedReceived)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildStatTile('UNLOCKED', unlockedReceived)),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withValues(alpha: 0.1),
-              color.withValues(alpha: 0.05),
-            ],
+  Widget _buildStatTile(String label, int value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '$value',
+            style: AppTheme.display.copyWith(fontSize: 28),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[400],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+          const SizedBox(height: 4),
+          Text(label, style: AppTheme.label),
+        ],
       ),
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quick Actions',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-
-        _buildActionTile(
-          icon: Icons.notifications,
-          title: 'Notifications',
-          subtitle: 'Manage notification preferences',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            );
-          },
-        ),
-        _buildActionTile(
-          icon: Icons.bar_chart,
-          title: 'Statistics',
-          subtitle: 'View detailed analytics',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StatisticsScreen()),
-            );
-          },
-        ),
-        _buildActionTile(
-          icon: Icons.share,
-          title: 'Share App',
-          subtitle: 'Invite friends to TimeCapsule',
-          onTap: () {
-            // TODO: Implement share functionality
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Share feature coming soon!')),
-            );
-          },
-        ),
-        _buildActionTile(
-          icon: Icons.help_outline,
-          title: 'Help & Support',
-          subtitle: 'Get help or send feedback',
-          onTap: () {
-            // TODO: Navigate to help screen
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Help & Support coming soon!')),
-            );
-          },
-        ),
-      ],
+  Widget _buildSettingsList(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          _buildRowItem(
+            context,
+            icon: Icons.settings_outlined,
+            title: 'Account Settings',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+          const Divider(color: AppTheme.divider, height: 0, indent: 48),
+          _buildRowItem(
+            context,
+            icon: Icons.notifications_none_outlined,
+            title: 'Notification Preferences',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+          const Divider(color: AppTheme.divider, height: 0, indent: 48),
+          _buildRowItem(
+            context,
+            icon: Icons.help_outline,
+            title: 'Help & Support',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Help center coming soon.')),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildActionTile({
+  Widget _buildRowItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
-    required String subtitle,
     required VoidCallback onTap,
   }) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon, color: Colors.deepPurple),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.textMuted, size: 20),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: AppTheme.body.copyWith(color: AppTheme.textBody),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppTheme.textHint, size: 20),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildAccountActions(BuildContext context, AuthProvider authProvider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Account',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
+  Widget _buildSettingsItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: _buildRowItem(context, icon: icon, title: title, onTap: onTap),
+    );
+  }
 
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.privacy_tip, color: Colors.blue),
-                title: const Text('Privacy Policy'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  // TODO: Show privacy policy
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Privacy Policy coming soon!'),
-                    ),
-                  );
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.description, color: Colors.green),
-                title: const Text('Terms of Service'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  // TODO: Show terms of service
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Terms of Service coming soon!'),
-                    ),
-                  );
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.orange),
-                title: const Text('Sign Out'),
-                onTap: () => _showSignOutDialog(context, authProvider),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.delete_forever, color: Colors.red),
-                title: const Text('Delete Account'),
-                onTap: () => _showDeleteAccountDialog(context),
-              ),
-            ],
+  Widget _buildAccountSection(BuildContext context, AuthProvider authProvider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          _buildRowItem(
+            context,
+            icon: Icons.logout,
+            title: 'Sign Out',
+            onTap: () => _showSignOutDialog(context, authProvider),
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // App Version
-        Center(
-          child: Text(
-            'TimeCapsule v1.0.0',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          const Divider(color: AppTheme.divider, height: 0, indent: 48),
+          _buildRowItem(
+            context,
+            icon: Icons.delete_outline,
+            title: 'Delete Account',
+            onTap: () => _showDeleteAccountDialog(context),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -498,7 +347,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
             child: const Text('Delete'),
           ),
         ],
@@ -509,7 +358,7 @@ class ProfileScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Account deletion feature coming soon!'),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppTheme.warning,
         ),
       );
     }
