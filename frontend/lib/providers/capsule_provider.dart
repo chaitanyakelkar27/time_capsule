@@ -111,14 +111,41 @@ class CapsuleProvider with ChangeNotifier {
     }
   }
 
-  // Get all users for recipient selection
-  Future<List<Map<String, dynamic>>> getUsers(String currentUserId) async {
+  // Get contacts for recipient selection
+  Future<List<Map<String, dynamic>>> getContacts(String currentUserId) async {
     try {
-      return await _firestoreService.getAllUsers(currentUserId);
+      return await _firestoreService.getContacts(currentUserId);
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();
       return [];
+    }
+  }
+
+  // Add contact by user ID
+  Future<Map<String, dynamic>?> addContactByUserId({
+    required String ownerUserId,
+    required String contactUserId,
+    required String displayName,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final contact = await _firestoreService.addContactByUserId(
+        ownerUserId: ownerUserId,
+        contactUserId: contactUserId,
+        displayName: displayName,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return contact;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return null;
     }
   }
 

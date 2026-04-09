@@ -106,20 +106,68 @@ class FirestoreService {
     }
   }
 
-  // Get all users (for selecting recipient)
-  Future<List<Map<String, dynamic>>> getAllUsers(String currentUserId) async {
+  // Get contacts for recipient selection
+  Future<List<Map<String, dynamic>>> getContacts(String currentUserId) async {
     try {
-      print('Fetching all users except: $currentUserId');
+      AppLogger.info('Fetching contacts for user: $currentUserId');
       final snapshot = await _firestore
           .collection('users')
-          .where('userId', isNotEqualTo: currentUserId)
+          .doc(currentUserId)
+          .collection('contacts')
+          .orderBy('displayName')
           .get();
 
-      print('Found ${snapshot.docs.length} users');
-      return snapshot.docs.map((doc) => doc.data()).toList();
+      AppLogger.info('Found ${snapshot.docs.length} contacts');
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'userId': data['userId'] ?? doc.id,
+          'displayName': data['displayName'] ?? 'Unknown',
+          'email': data['email'],
+        };
+      }).toList();
+    } on FirebaseException catch (e) {
+      AppLogger.error('Error fetching contacts: ${e.code} - ${e.message}', e);
+      throw Exception('Failed to get contacts: ${e.message ?? e.code}');
     } catch (e) {
-      print('Error fetching users: $e');
-      throw Exception('Failed to get users: $e');
+      AppLogger.error('Error fetching contacts', e);
+      throw Exception('Failed to get contacts: $e');
+    }
+  }
+
+  // Add a contact by user ID (no global user listing required)
+  Future<Map<String, dynamic>> addContactByUserId({
+    required String ownerUserId,
+    required String contactUserId,
+    required String displayName,
+  }) async {
+    try {
+      if (ownerUserId == contactUserId) {
+        throw Exception('You cannot add yourself as a contact.');
+      }
+
+      final safeDisplayName = displayName.trim().isEmpty
+          ? 'Contact'
+          : displayName.trim();
+
+      await _firestore
+          .collection('users')
+          .doc(ownerUserId)
+          .collection('contacts')
+          .doc(contactUserId)
+          .set({
+            'userId': contactUserId,
+            'displayName': safeDisplayName,
+            'addedAt': Timestamp.now(),
+          }, SetOptions(merge: true));
+
+      return {'userId': contactUserId, 'displayName': safeDisplayName};
+    } on FirebaseException catch (e) {
+      AppLogger.error('Error adding contact: ${e.code} - ${e.message}', e);
+      throw Exception(e.message ?? 'Failed to add contact');
+    } catch (e) {
+      AppLogger.error('Error adding contact', e);
+      throw Exception('Failed to add contact: $e');
     }
   }
 

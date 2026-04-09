@@ -37,6 +37,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   String? _selectedRecipientName;
   List<Map<String, dynamic>> _users = [];
   bool _isLoadingUsers = true;
+  bool _isAddingContact = false;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
 
@@ -76,8 +77,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     );
 
     try {
-      final users = await capsuleProvider.getUsers(authProvider.user!.userId);
-      AppLogger.info('Loaded ${users.length} users for recipient selection');
+      final users = await capsuleProvider.getContacts(
+        authProvider.user!.userId,
+      );
+      AppLogger.info('Loaded ${users.length} contacts for recipient selection');
       setState(() {
         _users = users;
         _isLoadingUsers = false;
@@ -87,7 +90,9 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('No other users found. Invite friends to join!'),
+              content: Text(
+                'No contacts found. Add a contact using their user ID.',
+              ),
               backgroundColor: AppTheme.warning,
             ),
           );
@@ -105,6 +110,160 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             backgroundColor: AppTheme.error,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _showAddContactDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final contactIdController = TextEditingController();
+    final displayNameController = TextEditingController();
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppTheme.cardBg,
+          title: Text('Add Contact', style: AppTheme.subheading),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: contactIdController,
+                  keyboardType: TextInputType.text,
+                  autofocus: true,
+                  style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: 'Contact user ID',
+                    prefixIcon: Icon(
+                      Icons.badge_outlined,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a contact user ID';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: displayNameController,
+                  keyboardType: TextInputType.text,
+                  style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: 'Display name (optional)',
+                    prefixIcon: Icon(
+                      Icons.person_outline,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) {
+                  return;
+                }
+                Navigator.of(dialogContext).pop({
+                  'userId': contactIdController.text.trim(),
+                  'displayName': displayNameController.text.trim(),
+                });
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+
+    contactIdController.dispose();
+    displayNameController.dispose();
+
+    if (result == null || (result['userId'] ?? '').isEmpty) {
+      return;
+    }
+
+    await _addContactById(result['userId']!, result['displayName'] ?? '');
+  }
+
+  Future<void> _addContactById(String contactUserId, String displayName) async {
+    if (_isAddingContact) {
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final capsuleProvider = Provider.of<CapsuleProvider>(
+      context,
+      listen: false,
+    );
+
+    setState(() {
+      _isAddingContact = true;
+    });
+
+    try {
+      final addedContact = await capsuleProvider.addContactByUserId(
+        ownerUserId: authProvider.user!.userId,
+        contactUserId: contactUserId,
+        displayName: displayName,
+      );
+      await _loadUsers();
+
+      if (!mounted) return;
+
+      if (addedContact != null) {
+        final contactUserId = addedContact['userId'] as String?;
+        final contactName = addedContact['displayName'] as String?;
+
+        if (contactUserId != null && contactName != null) {
+          setState(() {
+            _selectedRecipientId = contactUserId;
+            _selectedRecipientName = contactName;
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Contact added: ${contactName ?? contactUserId}'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              capsuleProvider.errorMessage ?? 'Failed to add contact',
+            ),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add contact: $e'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAddingContact = false;
+        });
       }
     }
   }
@@ -446,7 +605,11 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -501,10 +664,18 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
           icon: const Icon(Icons.arrow_back, color: AppTheme.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('New Capsule', style: AppTheme.heading.copyWith(fontSize: 17, fontWeight: FontWeight.w500)),
+        title: Text(
+          'New Capsule',
+          style: AppTheme.heading.copyWith(
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
       body: _isLoadingUsers
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               child: Form(
@@ -521,10 +692,16 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _titleController,
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'e.g., Future Note to Self',
-                        prefixIcon: Icon(Icons.title, color: AppTheme.textMuted, size: 20),
+                        prefixIcon: Icon(
+                          Icons.title,
+                          color: AppTheme.textMuted,
+                          size: 20,
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -542,16 +719,24 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     const SizedBox(height: 20),
 
                     // ── Message ───────────────────────────
-                    _buildSectionLabel(_capsuleType == 'text' ? 'MESSAGE' : 'CAPTION (OPTIONAL)'),
+                    _buildSectionLabel(
+                      _capsuleType == 'text' ? 'MESSAGE' : 'CAPTION (OPTIONAL)',
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _messageController,
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'Write your message to the future...',
                         prefixIcon: Padding(
                           padding: EdgeInsets.only(bottom: 80),
-                          child: Icon(Icons.chat_bubble_outline, color: AppTheme.textMuted, size: 20),
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            color: AppTheme.textMuted,
+                            size: 20,
+                          ),
                         ),
                         alignLabelWithHint: true,
                       ),
@@ -569,16 +754,45 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     const SizedBox(height: 20),
 
                     // ── Recipient ─────────────────────────
-                    _buildSectionLabel('RECIPIENT'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildSectionLabel('RECIPIENT'),
+                        TextButton.icon(
+                          onPressed: _isAddingContact
+                              ? null
+                              : _showAddContactDialog,
+                          icon: _isAddingContact
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.person_add_alt_1, size: 16),
+                          label: Text(
+                            _isAddingContact ? 'Adding...' : 'Add Contact',
+                            style: AppTheme.body.copyWith(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedRecipientId,
                       decoration: const InputDecoration(
                         hintText: 'Select Recipient',
-                        prefixIcon: Icon(Icons.person_outline, color: AppTheme.textMuted, size: 20),
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          color: AppTheme.textMuted,
+                          size: 20,
+                        ),
                       ),
                       dropdownColor: AppTheme.cardBg,
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                       items: _users.isEmpty
                           ? null
                           : _users.map((user) {
@@ -591,12 +805,22 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                               );
                             }).toList(),
                       onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
                         final selectedUser = _users.firstWhere(
                           (u) => u['userId'] == value,
+                          orElse: () => <String, dynamic>{},
                         );
+                        if (selectedUser.isEmpty) {
+                          return;
+                        }
+
                         setState(() {
                           _selectedRecipientId = value;
-                          _selectedRecipientName = selectedUser['displayName'];
+                          _selectedRecipientName =
+                              selectedUser['displayName'] as String? ??
+                              'Unknown';
                         });
                       },
                       validator: (value) {
@@ -606,6 +830,16 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                         return null;
                       },
                     ),
+                    if (_users.isEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'No contacts yet. Tap "Add Contact" and enter their user ID.',
+                        style: AppTheme.body.copyWith(
+                          fontSize: 12,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
 
                     // ── Unlock Type ──────────────────────
@@ -614,10 +848,16 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: _unlockType,
                       decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.schedule, color: AppTheme.textMuted, size: 20),
+                        prefixIcon: Icon(
+                          Icons.schedule,
+                          color: AppTheme.textMuted,
+                          size: 20,
+                        ),
                       ),
                       dropdownColor: AppTheme.cardBg,
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                       items: const [
                         DropdownMenuItem(
                           value: 'time',
@@ -643,17 +883,25 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _selectDate,
-                              icon: const Icon(Icons.calendar_today_outlined, size: 16, color: AppTheme.textSecondary),
+                              icon: const Icon(
+                                Icons.calendar_today_outlined,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
                               label: Text(
                                 _selectedDate == null
                                     ? 'Select Date'
                                     : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                                 style: AppTheme.body.copyWith(
-                                  color: _selectedDate != null ? AppTheme.textPrimary : AppTheme.textMuted,
+                                  color: _selectedDate != null
+                                      ? AppTheme.textPrimary
+                                      : AppTheme.textMuted,
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppTheme.inputBorder),
+                                side: const BorderSide(
+                                  color: AppTheme.inputBorder,
+                                ),
                                 minimumSize: const Size(0, 48),
                               ),
                             ),
@@ -662,17 +910,25 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _selectTime,
-                              icon: const Icon(Icons.access_time, size: 16, color: AppTheme.textSecondary),
+                              icon: const Icon(
+                                Icons.access_time,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
                               label: Text(
                                 _selectedTime == null
                                     ? 'Select Time'
                                     : _selectedTime!.format(context),
                                 style: AppTheme.body.copyWith(
-                                  color: _selectedTime != null ? AppTheme.textPrimary : AppTheme.textMuted,
+                                  color: _selectedTime != null
+                                      ? AppTheme.textPrimary
+                                      : AppTheme.textMuted,
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppTheme.inputBorder),
+                                side: const BorderSide(
+                                  color: AppTheme.inputBorder,
+                                ),
                                 minimumSize: const Size(0, 48),
                               ),
                             ),
@@ -696,18 +952,25 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                           children: [
                             if (_isUploading) ...[
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusPill,
+                                ),
                                 child: LinearProgressIndicator(
                                   value: _uploadProgress,
                                   minHeight: 3,
                                   backgroundColor: AppTheme.divider,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        AppTheme.primary,
+                                      ),
                                 ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Uploading... ${(_uploadProgress * 100).toInt()}%',
-                                style: AppTheme.body.copyWith(color: AppTheme.textMuted),
+                                style: AppTheme.body.copyWith(
+                                  color: AppTheme.textMuted,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 16),
@@ -751,7 +1014,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       children: [
         Text(
           'Step ${_currentStep + 1} of 3',
-          style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted),
+          style: AppTheme.body.copyWith(
+            fontSize: 12,
+            color: AppTheme.textMuted,
+          ),
         ),
         const SizedBox(width: 12),
         for (int i = 0; i < 3; i++) ...[
@@ -759,7 +1025,9 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             width: i == _currentStep ? 8 : 6,
             height: i == _currentStep ? 8 : 6,
             decoration: BoxDecoration(
-              color: i == _currentStep ? AppTheme.primary : AppTheme.inputBorder,
+              color: i == _currentStep
+                  ? AppTheme.primary
+                  : AppTheme.inputBorder,
               shape: BoxShape.circle,
             ),
           ),
@@ -784,8 +1052,16 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildMediaChip(Icons.photo_library_outlined, 'Gallery', _pickImageFromGallery),
-              _buildMediaChip(Icons.camera_alt_outlined, 'Camera', _pickImageFromCamera),
+              _buildMediaChip(
+                Icons.photo_library_outlined,
+                'Gallery',
+                _pickImageFromGallery,
+              ),
+              _buildMediaChip(
+                Icons.camera_alt_outlined,
+                'Camera',
+                _pickImageFromCamera,
+              ),
               _buildMediaChip(Icons.videocam_outlined, 'Video', _pickVideo),
             ],
           ),
@@ -814,7 +1090,11 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                         color: AppTheme.scaffold,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close, size: 16, color: AppTheme.textPrimary),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -831,12 +1111,18 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.videocam_outlined, size: 24, color: AppTheme.textMuted),
+                  const Icon(
+                    Icons.videocam_outlined,
+                    size: 24,
+                    color: AppTheme.textMuted,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _selectedVideoFile!.path.split('/').last,
-                      style: AppTheme.body.copyWith(color: AppTheme.textSecondary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -847,7 +1133,11 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                         _capsuleType = 'text';
                       });
                     },
-                    child: const Icon(Icons.close, size: 16, color: AppTheme.textMuted),
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: AppTheme.textMuted,
+                    ),
                   ),
                 ],
               ),
@@ -873,7 +1163,13 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
           children: [
             Icon(icon, size: 16, color: AppTheme.textSecondary),
             const SizedBox(width: 6),
-            Text(label, style: AppTheme.body.copyWith(fontSize: 13, color: AppTheme.textSecondary)),
+            Text(
+              label,
+              style: AppTheme.body.copyWith(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
@@ -920,7 +1216,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             Flexible(
               child: Text(
                 label,
-                style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textSecondary),
+                style: AppTheme.body.copyWith(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -941,7 +1240,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Unlock Location', style: AppTheme.subheading.copyWith(fontSize: 14)),
+          Text(
+            'Unlock Location',
+            style: AppTheme.subheading.copyWith(fontSize: 14),
+          ),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: _getCurrentLocation,
@@ -959,19 +1261,31 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on_outlined, color: AppTheme.success, size: 18),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    color: AppTheme.success,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _locationAddress ?? 'Location captured',
-                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      style: AppTheme.body.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 14),
-            Text('Unlock Radius', style: AppTheme.body.copyWith(fontWeight: FontWeight.w500, color: AppTheme.textPrimary)),
+            Text(
+              'Unlock Radius',
+              style: AppTheme.body.copyWith(
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimary,
+              ),
+            ),
             const SizedBox(height: 4),
             SliderTheme(
               data: SliderThemeData(
@@ -995,7 +1309,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             ),
             Text(
               'Recipient must be within ${_unlockRadius.toInt()} meters to unlock',
-              style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted),
+              style: AppTheme.body.copyWith(
+                fontSize: 12,
+                color: AppTheme.textMuted,
+              ),
             ),
           ],
         ],
