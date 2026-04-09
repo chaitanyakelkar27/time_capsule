@@ -51,5 +51,7 @@
 	<string>This app needs camera access so you can capture photos and videos for your time capsule.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access when recording videos for your time capsule.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs your location to create and unlock location-based capsules.</string>
 </dict>
 </plist>

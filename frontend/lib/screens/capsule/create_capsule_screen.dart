@@ -38,6 +38,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   List<Map<String, dynamic>> _users = [];
   bool _isLoadingUsers = true;
   bool _isAddingContact = false;
+  bool _isFetchingLocation = false;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
 
@@ -405,20 +406,53 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    final position = await _locationService.getCurrentLocation();
-    if (position != null) {
-      setState(() {
-        _selectedLocation = GeoPoint(position.latitude, position.longitude);
-        _locationAddress =
-            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
-      });
-      if (mounted) {
+    if (_isFetchingLocation) {
+      return;
+    }
+
+    setState(() {
+      _isFetchingLocation = true;
+    });
+
+    try {
+      final position = await _locationService.getCurrentLocation();
+      if (!mounted) return;
+
+      if (position != null) {
+        setState(() {
+          _selectedLocation = GeoPoint(position.latitude, position.longitude);
+          _locationAddress =
+              '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Location captured successfully!'),
             backgroundColor: AppTheme.success,
           ),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to fetch location. Enable location services and grant permission, then try again.',
+            ),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch location: $e'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocation = false;
+        });
       }
     }
   }
@@ -1246,9 +1280,20 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: _getCurrentLocation,
-            icon: const Icon(Icons.my_location, size: 18),
-            label: const Text('Capture Current Location'),
+            onPressed: _isFetchingLocation ? null : _getCurrentLocation,
+            icon: _isFetchingLocation
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.my_location, size: 18),
+            label: Text(
+              _isFetchingLocation ? 'Capturing...' : 'Capture Current Location',
+            ),
           ),
           if (_selectedLocation != null) ...[
             const SizedBox(height: 14),

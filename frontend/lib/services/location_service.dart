@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math' show cos, sqrt, asin;
@@ -42,12 +43,23 @@ class LocationService {
         throw Exception('Location permission denied');
       }
 
-      // Get position
+      // Get position with timeout to avoid indefinite waits.
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
         ),
       );
+    } on TimeoutException {
+      AppLogger.warning(
+        'Location request timed out. Falling back to last known location.',
+      );
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        return lastKnown;
+      }
+      AppLogger.error('No last known location available after timeout.');
+      return null;
     } catch (e) {
       AppLogger.error('❌ Error getting location: $e');
       return null;
