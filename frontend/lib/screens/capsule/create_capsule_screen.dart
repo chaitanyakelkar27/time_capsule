@@ -10,6 +10,7 @@ import '../../services/storage_service.dart';
 import '../../services/location_service.dart';
 import '../../services/ai_service.dart';
 import '../../utils/app_logger.dart';
+import '../../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateCapsuleScreen extends StatefulWidget {
@@ -51,6 +52,9 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   double _unlockRadius = 100.0;
   String? _locationAddress;
 
+  // Step tracking
+  final int _currentStep = 0; // 0=content, 1=recipient, 2=unlock
+
   @override
   void initState() {
     super.initState();
@@ -84,7 +88,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('No other users found. Invite friends to join!'),
-              backgroundColor: Colors.orange,
+              backgroundColor: AppTheme.warning,
             ),
           );
         }
@@ -98,7 +102,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading users: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.error,
           ),
         );
       }
@@ -253,7 +257,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Location captured successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.success,
           ),
         );
       }
@@ -288,8 +292,8 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('AI message generated! ✨'),
-            backgroundColor: Colors.green,
+            content: Text('AI message generated!'),
+            backgroundColor: AppTheme.success,
             duration: Duration(seconds: 2),
           ),
         );
@@ -324,8 +328,8 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Message enhanced! ✨'),
-            backgroundColor: Colors.green,
+            content: Text('Message enhanced!'),
+            backgroundColor: AppTheme.success,
             duration: Duration(seconds: 2),
           ),
         );
@@ -370,7 +374,6 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     });
 
     try {
-      // Upload media if present
       if (_selectedImageFile != null) {
         _imageUrl = await _storageService.uploadCapsuleMedia(
           file: _selectedImageFile!,
@@ -415,7 +418,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       final currentUser = authProvider.user!;
 
       final capsule = CapsuleModel(
-        capsuleId: '', // Will be set by Firestore
+        capsuleId: '',
         senderId: currentUser.userId,
         recipientId: _selectedRecipientId!,
         senderName: currentUser.displayName,
@@ -439,12 +442,11 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       final success = await capsuleProvider.createCapsule(capsule);
 
       if (success && mounted) {
-        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white),
+                const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -454,33 +456,31 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.success,
             duration: const Duration(seconds: 3),
           ),
         );
 
-        // Log confirmation for debugging
         AppLogger.info('Capsule created successfully!');
         AppLogger.info('Sender: ${currentUser.userId}');
         AppLogger.info(
           'Recipient: $_selectedRecipientId ($_selectedRecipientName)',
         );
 
-        // Navigate back to home screen
         if (!mounted) return;
         Navigator.of(context).pop();
       } else if (mounted && capsuleProvider.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(capsuleProvider.errorMessage!),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.error,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
         );
       }
     } finally {
@@ -493,22 +493,38 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Time Capsule')),
+      backgroundColor: AppTheme.scaffold,
+      appBar: AppBar(
+        backgroundColor: AppTheme.scaffold,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text('New Capsule', style: AppTheme.heading.copyWith(fontSize: 17, fontWeight: FontWeight.w500)),
+      ),
       body: _isLoadingUsers
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               child: Form(
                 key: _formKey,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
+                    // ── Step Indicator ────────────────────
+                    _buildStepIndicator(),
+                    const SizedBox(height: 24),
+
+                    // ── Title ─────────────────────────────
+                    _buildSectionLabel('TITLE'),
+                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _titleController,
+                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
                       decoration: const InputDecoration(
-                        labelText: 'Capsule Title',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.title),
+                        hintText: 'e.g., Future Note to Self',
+                        prefixIcon: Icon(Icons.title, color: AppTheme.textMuted, size: 20),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -517,254 +533,60 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Media Buttons
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Add Media (Optional)',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: _pickImageFromGallery,
-                                  icon: const Icon(Icons.photo_library),
-                                  label: const Text('Gallery'),
-                                ),
-                                ElevatedButton.icon(
-                                  onPressed: _pickImageFromCamera,
-                                  icon: const Icon(Icons.camera_alt),
-                                  label: const Text('Camera'),
-                                ),
-                                ElevatedButton.icon(
-                                  onPressed: _pickVideo,
-                                  icon: const Icon(Icons.videocam),
-                                  label: const Text('Video'),
-                                ),
-                              ],
-                            ),
-                            if (_selectedImageFile != null) ...[
-                              const SizedBox(height: 12),
-                              Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: _buildSelectedImagePreview(),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _selectedImageFile = null;
-                                          _selectedImageBytes = null;
-                                          _capsuleType = 'text';
-                                        });
-                                      },
-                                      icon: const Icon(Icons.close),
-                                      color: Colors.white,
-                                      style: IconButton.styleFrom(
-                                        backgroundColor: Colors.black54,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                            if (_selectedVideoFile != null) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                height: 100,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Padding(
-                                      padding: EdgeInsets.all(16.0),
-                                      child: Icon(
-                                        Icons.video_file,
-                                        size: 48,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        _selectedVideoFile!.path
-                                            .split('/')
-                                            .last,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _selectedVideoFile = null;
-                                          _capsuleType = 'text';
-                                        });
-                                      },
-                                      icon: const Icon(Icons.close),
-                                      color: Colors.white,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
+                    // ── Media ─────────────────────────────
+                    _buildSectionLabel('MEDIA (OPTIONAL)'),
+                    const SizedBox(height: 8),
+                    _buildMediaSection(),
+                    const SizedBox(height: 20),
+
+                    // ── Message ───────────────────────────
+                    _buildSectionLabel(_capsuleType == 'text' ? 'MESSAGE' : 'CAPTION (OPTIONAL)'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _messageController,
+                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(
+                        hintText: 'Write your message to the future...',
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.only(bottom: 80),
+                          child: Icon(Icons.chat_bubble_outline, color: AppTheme.textMuted, size: 20),
                         ),
+                        alignLabelWithHint: true,
                       ),
+                      maxLines: 5,
+                      validator: (value) {
+                        if (_capsuleType == 'text' &&
+                            (value == null || value.isEmpty)) {
+                          return 'Please enter a message';
+                        }
+                        return null;
+                      },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
+                    _buildAIButtons(),
+                    const SizedBox(height: 20),
 
-                    // Message (only for text type or as caption)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextFormField(
-                          controller: _messageController,
-                          decoration: InputDecoration(
-                            labelText: _capsuleType == 'text'
-                                ? 'Message'
-                                : 'Caption (Optional)',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.message),
-                            alignLabelWithHint: true,
-                          ),
-                          maxLines: 5,
-                          validator: (value) {
-                            if (_capsuleType == 'text' &&
-                                (value == null || value.isEmpty)) {
-                              return 'Please enter a message';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _isGeneratingAI
-                                    ? null
-                                    : _generateAIMessage,
-                                icon: _isGeneratingAI
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.auto_awesome, size: 18),
-                                label: Text(
-                                  _isGeneratingAI
-                                      ? 'Generating...'
-                                      : 'AI Suggest',
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF8B5CF6),
-                                  side: const BorderSide(
-                                    color: Color(0xFF8B5CF6),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _isGeneratingAI
-                                    ? null
-                                    : _enhanceMessage,
-                                icon: _isGeneratingAI
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.stars, size: 18),
-                                label: Text(
-                                  _isGeneratingAI
-                                      ? 'Enhancing...'
-                                      : 'AI Enhance',
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFC084FC),
-                                  side: const BorderSide(
-                                    color: Color(0xFFC084FC),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Recipient Selection
+                    // ── Recipient ─────────────────────────
+                    _buildSectionLabel('RECIPIENT'),
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedRecipientId,
-                      decoration: InputDecoration(
-                        labelText: 'Send To',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.person),
-                        helperText: _users.isEmpty
-                            ? 'No users available. Invite friends to join!'
-                            : 'Select who will receive this capsule',
+                      decoration: const InputDecoration(
+                        hintText: 'Select Recipient',
+                        prefixIcon: Icon(Icons.person_outline, color: AppTheme.textMuted, size: 20),
                       ),
-                      hint: Text(
-                        _users.isEmpty
-                            ? 'No recipients available'
-                            : 'Select Recipient',
-                      ),
+                      dropdownColor: AppTheme.cardBg,
+                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
                       items: _users.isEmpty
                           ? null
                           : _users.map((user) {
                               return DropdownMenuItem<String>(
                                 value: user['userId'],
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor: Colors.deepPurple
-                                          .withValues(alpha: 0.2),
-                                      child: Text(
-                                        (user['displayName'] ??
-                                                user['email'])[0]
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.deepPurple,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      user['displayName'] ?? 'No name',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                                child: Text(
+                                  user['displayName'] ?? 'No name',
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               );
                             }).toList(),
@@ -784,16 +606,18 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Unlock Type
+                    // ── Unlock Type ──────────────────────
+                    _buildSectionLabel('UNLOCK TYPE'),
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _unlockType,
                       decoration: const InputDecoration(
-                        labelText: 'Unlock Type',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_clock),
+                        prefixIcon: Icon(Icons.schedule, color: AppTheme.textMuted, size: 20),
                       ),
+                      dropdownColor: AppTheme.cardBg,
+                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
                       items: const [
                         DropdownMenuItem(
                           value: 'time',
@@ -812,154 +636,97 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Date and Time Selection (for time-based)
+                    // ── Time Selection ────────────────────
                     if (_unlockType == 'time') ...[
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _selectDate,
-                              icon: const Icon(Icons.calendar_today),
+                              icon: const Icon(Icons.calendar_today_outlined, size: 16, color: AppTheme.textSecondary),
                               label: Text(
                                 _selectedDate == null
                                     ? 'Select Date'
                                     : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                                style: AppTheme.body.copyWith(
+                                  color: _selectedDate != null ? AppTheme.textPrimary : AppTheme.textMuted,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppTheme.inputBorder),
+                                minimumSize: const Size(0, 48),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _selectTime,
-                              icon: const Icon(Icons.access_time),
+                              icon: const Icon(Icons.access_time, size: 16, color: AppTheme.textSecondary),
                               label: Text(
                                 _selectedTime == null
                                     ? 'Select Time'
                                     : _selectedTime!.format(context),
+                                style: AppTheme.body.copyWith(
+                                  color: _selectedTime != null ? AppTheme.textPrimary : AppTheme.textMuted,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppTheme.inputBorder),
+                                minimumSize: const Size(0, 48),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                     ],
 
-                    // Location Selection (for location-based)
+                    // ── Location Selection ───────────────
                     if (_unlockType == 'location') ...[
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Unlock Location',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: _getCurrentLocation,
-                                icon: const Icon(Icons.my_location),
-                                label: const Text('Capture Current Location'),
-                              ),
-                              if (_selectedLocation != null) ...[
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.green),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on,
-                                        color: Colors.green,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _locationAddress ??
-                                              'Location captured',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'Unlock Radius',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Slider(
-                                  value: _unlockRadius,
-                                  min: 50,
-                                  max: 1000,
-                                  divisions: 19,
-                                  label: '${_unlockRadius.toInt()}m',
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _unlockRadius = value;
-                                    });
-                                  },
-                                ),
-                                Text(
-                                  'Recipient must be within ${_unlockRadius.toInt()} meters to unlock',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[400],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                      _buildLocationSection(),
+                      const SizedBox(height: 20),
                     ],
 
-                    // Create Button
+                    // ── Create Button ────────────────────
                     Consumer<CapsuleProvider>(
                       builder: (context, capsuleProvider, child) {
                         return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (_isUploading) ...[
-                              LinearProgressIndicator(value: _uploadProgress),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                                child: LinearProgressIndicator(
+                                  value: _uploadProgress,
+                                  minHeight: 3,
+                                  backgroundColor: AppTheme.divider,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                                ),
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 'Uploading... ${(_uploadProgress * 100).toInt()}%',
-                                style: TextStyle(color: Colors.grey[400]),
+                                style: AppTheme.body.copyWith(color: AppTheme.textMuted),
+                                textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 16),
                             ],
-                            ElevatedButton.icon(
+                            FilledButton(
                               onPressed:
                                   capsuleProvider.isLoading || _isUploading
                                   ? null
                                   : _createCapsule,
-                              icon: (capsuleProvider.isLoading || _isUploading)
+                              child: (capsuleProvider.isLoading || _isUploading)
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
+                                        color: Colors.white,
                                       ),
                                     )
-                                  : const Icon(Icons.lock),
-                              label: Text(
-                                _isUploading
-                                    ? 'Uploading...'
-                                    : 'Create Capsule',
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
+                                  : const Text('Create Capsule'),
                             ),
                           ],
                         );
@@ -969,6 +736,270 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  // ── Helpers ────────────────────────────────────────────
+
+  Widget _buildSectionLabel(String text) {
+    return Text(text, style: AppTheme.label);
+  }
+
+  Widget _buildStepIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Step ${_currentStep + 1} of 3',
+          style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted),
+        ),
+        const SizedBox(width: 12),
+        for (int i = 0; i < 3; i++) ...[
+          Container(
+            width: i == _currentStep ? 8 : 6,
+            height: i == _currentStep ? 8 : 6,
+            decoration: BoxDecoration(
+              color: i == _currentStep ? AppTheme.primary : AppTheme.inputBorder,
+              shape: BoxShape.circle,
+            ),
+          ),
+          if (i < 2) const SizedBox(width: 6),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMediaSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildMediaChip(Icons.photo_library_outlined, 'Gallery', _pickImageFromGallery),
+              _buildMediaChip(Icons.camera_alt_outlined, 'Camera', _pickImageFromCamera),
+              _buildMediaChip(Icons.videocam_outlined, 'Video', _pickVideo),
+            ],
+          ),
+          if (_selectedImageFile != null) ...[
+            const SizedBox(height: 12),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusInput),
+                  child: _buildSelectedImagePreview(),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedImageFile = null;
+                        _selectedImageBytes = null;
+                        _capsuleType = 'text';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.scaffold,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 16, color: AppTheme.textPrimary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_selectedVideoFile != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.scaffold,
+                borderRadius: BorderRadius.circular(AppTheme.radiusInput),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.videocam_outlined, size: 24, color: AppTheme.textMuted),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedVideoFile!.path.split('/').last,
+                      style: AppTheme.body.copyWith(color: AppTheme.textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedVideoFile = null;
+                        _capsuleType = 'text';
+                      });
+                    },
+                    child: const Icon(Icons.close, size: 16, color: AppTheme.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaChip(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.scaffold,
+          borderRadius: BorderRadius.circular(AppTheme.radiusInput),
+          border: Border.all(color: AppTheme.inputBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppTheme.textSecondary),
+            const SizedBox(width: 6),
+            Text(label, style: AppTheme.body.copyWith(fontSize: 13, color: AppTheme.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAIButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildAIChip(
+            Icons.auto_awesome,
+            _isGeneratingAI ? 'Generating...' : 'AI Suggest',
+            _isGeneratingAI ? null : _generateAIMessage,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildAIChip(
+            Icons.auto_awesome,
+            _isGeneratingAI ? 'Enhancing...' : 'AI Enhance',
+            _isGeneratingAI ? null : _enhanceMessage,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAIChip(IconData icon, String label, VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: BorderRadius.circular(AppTheme.radiusInput),
+          border: Border.all(color: AppTheme.inputBorder),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 14, color: AppTheme.primary),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textSecondary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Unlock Location', style: AppTheme.subheading.copyWith(fontSize: 14)),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _getCurrentLocation,
+            icon: const Icon(Icons.my_location, size: 18),
+            label: const Text('Capture Current Location'),
+          ),
+          if (_selectedLocation != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.scaffold,
+                borderRadius: BorderRadius.circular(AppTheme.radiusInput),
+                border: Border.all(color: AppTheme.success),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, color: AppTheme.success, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _locationAddress ?? 'Location captured',
+                      style: AppTheme.body.copyWith(color: AppTheme.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('Unlock Radius', style: AppTheme.body.copyWith(fontWeight: FontWeight.w500, color: AppTheme.textPrimary)),
+            const SizedBox(height: 4),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: AppTheme.primary,
+                inactiveTrackColor: AppTheme.divider,
+                thumbColor: AppTheme.primary,
+                overlayColor: AppTheme.primary.withValues(alpha: 0.15),
+              ),
+              child: Slider(
+                value: _unlockRadius,
+                min: 50,
+                max: 1000,
+                divisions: 19,
+                label: '${_unlockRadius.toInt()}m',
+                onChanged: (value) {
+                  setState(() {
+                    _unlockRadius = value;
+                  });
+                },
+              ),
+            ),
+            Text(
+              'Recipient must be within ${_unlockRadius.toInt()} meters to unlock',
+              style: AppTheme.body.copyWith(fontSize: 12, color: AppTheme.textMuted),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

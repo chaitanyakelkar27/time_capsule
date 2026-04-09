@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/capsule_model.dart';
+import '../theme/app_theme.dart';
 
 class CapsuleCard extends StatelessWidget {
   final CapsuleModel capsule;
@@ -16,267 +17,126 @@ class CapsuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                capsule.isLocked
-                    ? Colors.amber.withValues(alpha: 0.03)
-                    : Colors.green.withValues(alpha: 0.03),
-                Colors.transparent,
+    final statusColor = _statusColor();
+    final statusIcon = _statusIcon();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+              border: Border.all(color: AppTheme.divider, width: 1),
+            ),
+            child: Row(
+              children: [
+                // Status dot
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        capsule.title,
+                        style: AppTheme.subheading.copyWith(
+                          color: AppTheme.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isSent
+                            ? 'To: ${capsule.recipientName}'
+                            : 'From: ${capsule.senderName}',
+                        style: AppTheme.body.copyWith(
+                          fontSize: 12,
+                          color: AppTheme.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildUnlockChip(),
+                    ],
+                  ),
+                ),
+
+                // Trailing icon
+                Icon(statusIcon, color: statusColor, size: 18),
               ],
             ),
-          ),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  // Lock Icon
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: capsule.isLocked
-                          ? Colors.amber.withValues(alpha: 0.2)
-                          : Colors.green.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      capsule.isLocked
-                          ? Icons.lock_rounded
-                          : Icons.lock_open_rounded,
-                      color: capsule.isLocked ? Colors.amber : Colors.green,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Title and Recipient/Sender
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          capsule.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              isSent
-                                  ? Icons.send_rounded
-                                  : Icons.person_rounded,
-                              size: 14,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                isSent
-                                    ? capsule.recipientName
-                                    : capsule.senderName,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[400],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Type Badge
-                  _buildTypeBadge(),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 8),
-
-              // Unlock Info
-              _buildUnlockInfo(context),
-
-              const SizedBox(height: 8),
-
-              // Status
-              Row(
-                children: [
-                  Icon(_getStatusIcon(), size: 16, color: _getStatusColor()),
-                  const SizedBox(width: 4),
-                  Text(
-                    _getStatusText(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getStatusColor(),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('MMM dd, yyyy').format(capsule.createdAt),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTypeBadge() {
-    IconData icon;
-    Color color;
-    switch (capsule.type) {
-      case 'image':
-        icon = Icons.image_rounded;
-        color = Colors.blue;
-        break;
-      case 'video':
-        icon = Icons.videocam_rounded;
-        color = Colors.purple;
-        break;
-      case 'audio':
-        icon = Icons.audiotrack_rounded;
-        color = Colors.pink;
-        break;
-      default:
-        icon = Icons.text_fields_rounded;
-        color = Colors.teal;
-    }
+  Color _statusColor() {
+    if (capsule.status == 'reacted') return AppTheme.primary;
+    return capsule.isLocked ? AppTheme.statusLocked : AppTheme.statusUnlocked;
+  }
 
+  IconData _statusIcon() {
+    if (!capsule.isLocked) return Icons.check_circle_outline;
+    return Icons.lock_outline;
+  }
+
+  Widget _buildUnlockChip() {
+    final label = _buildUnlockLabel();
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
+        color: AppTheme.divider,
+        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       ),
-      child: Icon(icon, size: 18, color: color),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.schedule, size: 12, color: AppTheme.textSecondary),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: AppTheme.label.copyWith(fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildUnlockInfo(BuildContext context) {
-    if (!capsule.isLocked) {
-      return Row(
-        children: [
-          const Icon(Icons.check_circle, size: 16, color: Colors.green),
-          const SizedBox(width: 4),
-          Text(
-            'Unlocked on ${DateFormat('MMM dd, yyyy HH:mm').format(capsule.unlockedAt!)}',
-            style: const TextStyle(fontSize: 12, color: Colors.green),
-          ),
-        ],
-      );
+  String _buildUnlockLabel() {
+    if (!capsule.isLocked && capsule.unlockedAt != null) {
+      return 'UNLOCKED ${DateFormat('MMM dd, yyyy').format(capsule.unlockedAt!)}';
     }
 
     if (capsule.isTimeLocked && capsule.unlockDate != null) {
-      final timeLeft = capsule.timeUntilUnlock;
-      if (timeLeft != null && timeLeft.isNegative) {
-        return const Row(
-          children: [
-            Icon(Icons.access_time, size: 16, color: Colors.amber),
-            SizedBox(width: 4),
-            Text(
-              'Ready to unlock!',
-              style: TextStyle(fontSize: 12, color: Colors.amber),
-            ),
-          ],
-        );
-      } else if (timeLeft != null) {
-        return Row(
-          children: [
-            const Icon(Icons.access_time, size: 16, color: Colors.orange),
-            const SizedBox(width: 4),
-            Text(
-              'Unlocks in ${_formatDuration(timeLeft)}',
-              style: const TextStyle(fontSize: 12, color: Colors.orange),
-            ),
-          ],
-        );
-      }
+      return 'UNLOCK ${DateFormat('MMM dd, yyyy').format(capsule.unlockDate!)}';
     }
 
     if (capsule.isLocationLocked) {
-      return const Row(
-        children: [
-          Icon(Icons.location_on, size: 16, color: Colors.purple),
-          SizedBox(width: 4),
-          Text(
-            'Unlocks at specific location',
-            style: TextStyle(fontSize: 12, color: Colors.purple),
-          ),
-        ],
-      );
+      return 'UNLOCK AT LOCATION';
     }
 
-    return const SizedBox();
-  }
-
-  String _formatDuration(Duration duration) {
-    if (duration.inDays > 0) {
-      return '${duration.inDays}d ${duration.inHours % 24}h';
-    } else if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes % 60}m';
-    } else if (duration.inMinutes > 0) {
-      return '${duration.inMinutes}m';
-    } else {
-      return 'Less than a minute';
-    }
-  }
-
-  IconData _getStatusIcon() {
-    switch (capsule.status) {
-      case 'unlocked':
-        return Icons.lock_open;
-      case 'reacted':
-        return Icons.favorite;
-      default:
-        return Icons.lock;
-    }
-  }
-
-  Color _getStatusColor() {
-    switch (capsule.status) {
-      case 'unlocked':
-        return Colors.green;
-      case 'reacted':
-        return Colors.pink;
-      default:
-        return Colors.amber;
-    }
-  }
-
-  String _getStatusText() {
-    switch (capsule.status) {
-      case 'unlocked':
-        return 'Unlocked';
-      case 'reacted':
-        return 'Reacted';
-      default:
-        return 'Locked';
-    }
+    return 'CREATED ${DateFormat('MMM dd, yyyy').format(capsule.createdAt)}';
   }
 }
