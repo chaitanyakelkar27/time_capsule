@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +11,7 @@ import 'screens/capsule/capsule_detail_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firestore_service.dart';
 import 'utils/app_logger.dart';
+import 'theme/app_theme.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -51,7 +52,6 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
   }
 
   void _handleForegroundNotification(RemoteMessage message) {
-    // Show in-app notification dialog
     final context = navigatorKey.currentContext;
     if (context != null) {
       showDialog(
@@ -59,7 +59,7 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
         builder: (context) => AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.notifications_active, color: Colors.deepPurple),
+              const Icon(Icons.notifications_active, color: AppTheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -94,7 +94,6 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
 
     if (capsuleId != null && context != null) {
       try {
-        // Fetch capsule details
         final capsule = await _firestoreService.getCapsule(capsuleId);
 
         if (capsule != null) {
@@ -104,7 +103,6 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
           );
           final isSent = capsule.senderId == authProvider.user?.userId;
 
-          // Navigate to capsule detail screen
           navigatorKey.currentState?.push(
             MaterialPageRoute(
               builder: (_) =>
@@ -132,7 +130,7 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           AppLogger.debug(
-            '🏗️ Building MaterialApp - isAuthenticated: ${authProvider.isAuthenticated}',
+            'Building MaterialApp - isAuthenticated: ${authProvider.isAuthenticated}',
           );
 
           return MaterialApp(
@@ -140,13 +138,7 @@ class _TimeCapsuleAppState extends State<TimeCapsuleApp> {
             title: 'TimeCapsule',
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.deepPurple,
-                brightness: Brightness.dark,
-              ),
-              useMaterial3: true,
-            ),
+            theme: AppTheme.darkTheme,
             home: authProvider.isAuthenticated
                 ? const HomeScreen()
                 : const LoginScreen(),
