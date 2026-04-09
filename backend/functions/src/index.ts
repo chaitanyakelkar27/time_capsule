@@ -7,10 +7,10 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import {setGlobalOptions} from "firebase-functions";
-import {onSchedule} from "firebase-functions/v2/scheduler";
-import {onDocumentUpdated} from "firebase-functions/v2/firestore";
-import {onCall} from "firebase-functions/v2/https";
+import { setGlobalOptions } from "firebase-functions";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
@@ -30,13 +30,13 @@ admin.initializeApp();
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({maxInstances: 10});
+setGlobalOptions({ maxInstances: 10 });
 
 /**
  * Check and unlock matured capsules (runs every hour)
  */
 export const checkMaturedCapsules = onSchedule(
-  {schedule: "every 1 hours", timeZone: "America/New_York"},
+  { schedule: "every 1 hours", timeZone: "America/New_York" },
   async () => {
     logger.info("⏰ Checking matured capsules...");
 
@@ -191,13 +191,109 @@ export const onCapsuleUnlocked = onDocumentUpdated(
 );
 
 /**
+ * Add a contact by email for the current authenticated user.
+ */
+export const addContactByEmail = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const emailValue = request.data?.email;
+  if (typeof emailValue !== "string") {
+    throw new HttpsError("invalid-argument", "Email is required.");
+  }
+
+  const email = emailValue.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    throw new HttpsError("invalid-argument", "Invalid email format.");
+  }
+
+  const ownerId = request.auth.uid;
+  const ownerEmail = request.auth.token.email;
+  if (typeof ownerEmail === "string" && ownerEmail.toLowerCase() === email) {
+    throw new HttpsError(
+      "failed-precondition",
+      "You cannot add yourself as a contact."
+    );
+  }
+
+  let targetUser: admin.auth.UserRecord;
+  try {
+    targetUser = await admin.auth().getUserByEmail(email);
+  } catch (error) {
+    logger.warn("addContactByEmail target lookup failed", { ownerId, email });
+    throw new HttpsError("not-found", "No user found for that email.");
+  }
+
+  if (targetUser.uid === ownerId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "You cannot add yourself as a contact."
+    );
+  }
+
+  const db = admin.firestore();
+  const targetRef = db.collection("users").doc(targetUser.uid);
+  const targetSnap = await targetRef.get();
+
+  let displayName = targetUser.displayName?.trim() || "";
+  let contactEmail = (targetUser.email ?? email).toLowerCase();
+
+  if (targetSnap.exists) {
+    const targetData = targetSnap.data();
+    if (typeof targetData?.displayName === "string" &&
+      targetData.displayName.trim()) {
+      displayName = targetData.displayName.trim();
+    }
+    if (typeof targetData?.email === "string" && targetData.email.trim()) {
+      contactEmail = targetData.email.trim().toLowerCase();
+    }
+  } else {
+    if (!displayName) {
+      displayName = contactEmail.split("@")[0] || "User";
+    }
+
+    await targetRef.set({
+      userId: targetUser.uid,
+      email: contactEmail,
+      displayName,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  if (!displayName) {
+    displayName = contactEmail.split("@")[0] || "User";
+  }
+
+  await db
+    .collection("users")
+    .doc(ownerId)
+    .collection("contacts")
+    .doc(targetUser.uid)
+    .set({
+      userId: targetUser.uid,
+      displayName,
+      email: contactEmail,
+      addedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+  logger.info("Contact added", { ownerId, contactUserId: targetUser.uid });
+
+  return {
+    userId: targetUser.uid,
+    displayName,
+    email: contactEmail,
+  };
+});
+
+/**
  * Check location-based unlock
  */
 export const checkLocationUnlock = onCall(async (request) => {
-  const {capsuleId, userLatitude, userLongitude} = request.data;
+  const { capsuleId, userLatitude, userLongitude } = request.data;
 
   if (!capsuleId || userLatitude === undefined ||
-        userLongitude === undefined) {
+    userLongitude === undefined) {
     throw new Error("Missing required parameters");
   }
 
@@ -222,7 +318,7 @@ export const checkLocationUnlock = onCall(async (request) => {
 
     // Check if already unlocked
     if (!capsule.isLocked) {
-      return {unlocked: true, distance: 0, alreadyUnlocked: true};
+      return { unlocked: true, distance: 0, alreadyUnlocked: true };
     }
 
     // Calculate distance using Haversine formula
@@ -249,10 +345,10 @@ export const checkLocationUnlock = onCall(async (request) => {
 
       logger.info(`✅ Capsule ${capsuleId} unlocked by location`);
 
-      return {unlocked: true, distance, alreadyUnlocked: false};
+      return { unlocked: true, distance, alreadyUnlocked: false };
     }
 
-    return {unlocked: false, distance, required: unlockRadius};
+    return { unlocked: false, distance, required: unlockRadius };
   } catch (error) {
     logger.error("❌ Error checking location unlock:", error);
     throw error;
@@ -280,8 +376,8 @@ function calculateDistance(
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
   const a =
-        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 

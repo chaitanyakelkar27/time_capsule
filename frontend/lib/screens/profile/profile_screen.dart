@@ -20,9 +20,7 @@ class ProfileScreen extends StatelessWidget {
     if (user == null) {
       return Scaffold(
         backgroundColor: AppTheme.scaffold,
-        body: Center(
-          child: Text('Not logged in', style: AppTheme.body),
-        ),
+        body: Center(child: Text('Not logged in', style: AppTheme.body)),
       );
     }
 
@@ -44,7 +42,10 @@ class ProfileScreen extends StatelessWidget {
         ),
         title: Text(
           'Profile',
-          style: AppTheme.heading.copyWith(fontSize: 17, fontWeight: FontWeight.w500),
+          style: AppTheme.heading.copyWith(
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -81,9 +82,7 @@ class ProfileScreen extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const StatisticsScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const StatisticsScreen()),
                 );
               },
             ),
@@ -137,7 +136,10 @@ class ProfileScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           email,
-          style: AppTheme.body.copyWith(fontSize: 13, color: AppTheme.textMuted),
+          style: AppTheme.body.copyWith(
+            fontSize: 13,
+            color: AppTheme.textMuted,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
@@ -235,10 +237,7 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            '$value',
-            style: AppTheme.display.copyWith(fontSize: 28),
-          ),
+          Text('$value', style: AppTheme.display.copyWith(fontSize: 28)),
           const SizedBox(height: 4),
           Text(label, style: AppTheme.label),
         ],
