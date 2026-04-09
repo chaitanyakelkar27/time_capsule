@@ -1,6 +1,6 @@
 # TimeCapsule ⏰📍
 
-A Flutter-based digital vault where users can send messages, photos, or videos that stay "locked" until a specific future date or location is reached. Enhanced with AI-powered message generation using Google Gemini.
+A Flutter-based digital vault where users can send messages, photos, or videos that stay "locked" until a specific future date or location is reached. Enhanced with AI-powered message generation using Groq.
 
 ## 🚀 Live Demo
 
@@ -13,7 +13,7 @@ Access the app instantly on any device - no installation required!
 - ✅ **User Authentication** - Email/password authentication with Firebase
 - ✅ **Time-Based Unlocking** - Capsules unlock at a specific future date/time
 - ✅ **Location-Based Unlocking** - Capsules unlock when recipient reaches a specific location
-- ✅ **AI Message Generation** - Generate creative, heartfelt messages with Google Gemini AI
+- ✅ **AI Message Generation** - Generate creative, heartfelt messages with Groq AI
 - ✅ **AI Message Enhancement** - Polish and improve existing messages with AI
 - ✅ **Reaction Videos** - Recipients can record and send reaction videos
 - ✅ **Real-time Updates** - Live sync of capsules using Firestore streams
@@ -29,7 +29,7 @@ Access the app instantly on any device - no installation required!
 - **Flutter 3.38.5** - Cross-platform mobile/web framework
 - **Provider** - State management
 - **Firebase SDK** - Authentication, Firestore, Storage, Cloud Functions
-- **Google Generative AI** - Gemini Pro for AI message generation
+- **Groq API** - LLM-based message generation and enhancement
 - **Material Design 3** - Modern UI components
 - **Cached Network Image** - Efficient image loading
 - **Video Player** - Video playback support
@@ -45,7 +45,7 @@ Access the app instantly on any device - no installation required!
 - **Firebase Hosting** - Static web hosting
 
 ### AI Integration
-- **Google Gemini Pro** - AI-powered message suggestions and enhancements
+- **Groq Chat Completions** - AI-powered message suggestions and enhancements
 - **Context-Aware Generation** - Personalized messages based on recipient, unlock type, and capsule title
 - **Message Enhancement** - Improves writing style while maintaining sentiment
 
@@ -62,7 +62,7 @@ time_capsule/
 │   │   │   ├── storage_service.dart
 │   │   │   ├── location_service.dart
 │   │   │   ├── notification_service.dart
-│   │   │   └── ai_service.dart        # Gemini AI integration
+│   │   │   └── ai_service.dart        # Groq AI integration
 │   │   ├── providers/          # State management (AuthProvider, CapsuleProvider)
 │   │   ├── screens/            # UI screens
 │   │   │   ├── auth/           # Login, register screens
@@ -111,7 +111,7 @@ No installation required - works on mobile, tablet, and desktop.
 - Node.js (v20+)
 - Firebase CLI
 - Firebase project with Authentication, Firestore, Storage, Functions, and Hosting enabled
-- Google Cloud API Key for Gemini AI
+- Groq API key (for AI suggestions)
 
 #### Installation
 
@@ -127,16 +127,18 @@ No installation required - works on mobile, tablet, and desktop.
    flutter pub get
    ```
 
-3. **Firebase Configuration**
+3. **Firebase and AI Configuration**
    - Firebase config is in `lib/firebase_options.dart`
-   - Update `lib/services/ai_service.dart` with your Gemini API key
+   - Pass Groq secrets at runtime using dart-define:
+     - `--dart-define=GROQ_API_KEY=your_key`
+     - Optional: `--dart-define=GROQ_MODEL=llama-3.1-8b-instant`
    - Web service worker configured in `web/firebase-messaging-sw.js`
 
 4. **Run the app**
    ```bash
    cd frontend
-   flutter run -d chrome  # For web
-   flutter run            # For mobile (connected device/emulator)
+   flutter run -d chrome --dart-define=GROQ_API_KEY=your_key  # For web
+   flutter run --dart-define=GROQ_API_KEY=your_key            # For mobile
    ```
 
 5. **Deploy to Firebase Hosting**
@@ -167,7 +169,7 @@ No installation required - works on mobile, tablet, and desktop.
 - **AI Suggest**: Click to generate a creative, personalized message
   - Based on capsule title, recipient name, and unlock conditions
   - 100-150 words of heartfelt content
-  - Generated in seconds using Gemini Pro
+   - Generated in seconds using Groq
 - **AI Enhance**: Click to polish your existing message
   - Improves writing style and flow
   - Maintains your original sentiment
@@ -212,7 +214,7 @@ No installation required - works on mobile, tablet, and desktop.
 4. **Firebase Cloud Functions** - Serverless backend
 5. **Firebase Cloud Messaging** - Push notifications
 6. **Firebase Hosting** - Web app deployment
-7. **Google Gemini AI** - AI message generation and enhancement
+7. **Groq API** - AI message generation and enhancement
 
 ## 🔒 Security Features
 
@@ -236,7 +238,7 @@ No installation required - works on mobile, tablet, and desktop.
 
 **No recipients available**: Create multiple user accounts to test sending capsules between users.
 
-**AI features not working**: Ensure you have a valid Gemini API key in `ai_service.dart`.
+**AI features not working**: Ensure `GROQ_API_KEY` is passed with `--dart-define` when running the app.
 
 **Capsules not showing**: Check browser console for errors. The app uses real-time Firestore listeners.
 
@@ -286,7 +288,7 @@ MIT License - See LICENSE file for details
 
 - Flutter team for the amazing framework
 - Firebase for backend services
-- Google Gemini AI for message generation
+- Groq API for message generation
 - Unsplash for professional imagery
 - Material Design for UI guidelines
 

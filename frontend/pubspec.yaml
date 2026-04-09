@@ -37,10 +37,11 @@ dependencies:
   intl: ^0.20.2
   cached_network_image: ^3.4.1
   path: ^1.9.1
+  http: ^1.2.2
   shimmer: ^3.0.0
   
   # AI
-  google_generative_ai: ^0.4.6
+  # Uses Groq Chat Completions over HTTPS
   
   # Logging
   logger: ^2.5.0
