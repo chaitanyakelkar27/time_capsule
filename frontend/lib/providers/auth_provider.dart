@@ -37,6 +37,21 @@ class AuthProvider with ChangeNotifier {
         if (firebaseUser != null) {
           try {
             _user = await _authService.getUserData(firebaseUser.uid);
+
+            // Guard against legacy profiles with missing userId in Firestore.
+            if ((_user?.userId.trim().isEmpty ?? true)) {
+              _user =
+                  (_user ??
+                          UserModel.fromFirebaseUser(
+                            firebaseUser.uid,
+                            firebaseUser.email ?? '',
+                            firebaseUser.displayName ??
+                                firebaseUser.email?.split('@')[0] ??
+                                'User',
+                          ))
+                      .copyWith(userId: firebaseUser.uid);
+            }
+
             AppLogger.info('👤 User data loaded: ${_user?.email}');
           } catch (e) {
             AppLogger.warning(
