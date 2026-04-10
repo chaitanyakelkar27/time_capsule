@@ -86,7 +86,10 @@ class AuthService {
 
         if (doc.exists) {
           AppLogger.info('✅ User document found in Firestore');
-          return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+          return UserModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            documentId: doc.id,
+          );
         }
 
         AppLogger.warning(
@@ -145,7 +148,10 @@ class AuthService {
 
       if (doc.exists) {
         AppLogger.info('✅ User document exists');
-        return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+        return UserModel.fromMap(
+          doc.data() as Map<String, dynamic>,
+          documentId: doc.id,
+        );
       } else {
         AppLogger.warning(
           '⚠️ User document missing, creating from Firebase Auth...',
