@@ -567,10 +567,15 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     });
 
     try {
+      final capsuleId = FirebaseFirestore.instance
+          .collection('capsules')
+          .doc()
+          .id;
+
       if (_selectedImageFile != null) {
         _imageUrl = await _storageService.uploadCapsuleMedia(
           file: _selectedImageFile!,
-          capsuleId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+          capsuleId: capsuleId,
           type: 'image',
           onProgress: (progress) {
             setState(() => _uploadProgress = progress);
@@ -587,7 +592,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       if (_selectedVideoFile != null) {
         _videoUrl = await _storageService.uploadCapsuleMedia(
           file: _selectedVideoFile!,
-          capsuleId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+          capsuleId: capsuleId,
           type: 'video',
           onProgress: (progress) {
             setState(() => _uploadProgress = progress);
@@ -611,7 +616,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       final currentUser = authProvider.user!;
 
       final capsule = CapsuleModel(
-        capsuleId: '',
+        capsuleId: capsuleId,
         senderId: currentUser.userId,
         recipientId: _selectedRecipientId!,
         senderName: currentUser.displayName,
