@@ -1,23 +1,29 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/capsule_model.dart';
 import '../services/firestore_service.dart';
 
 class CapsuleProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
+  StreamSubscription<List<CapsuleModel>>? _sentSubscription;
+  StreamSubscription<List<CapsuleModel>>? _receivedSubscription;
 
   List<CapsuleModel> _sentCapsules = [];
   List<CapsuleModel> _receivedCapsules = [];
+  List<Map<String, dynamic>> _contacts = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   List<CapsuleModel> get sentCapsules => _sentCapsules;
   List<CapsuleModel> get receivedCapsules => _receivedCapsules;
+  List<Map<String, dynamic>> get contacts => _contacts;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
   // Listen to sent capsules
   void listenToSentCapsules(String userId) {
-    _firestoreService
+    _sentSubscription?.cancel();
+    _sentSubscription = _firestoreService
         .getSentCapsules(userId)
         .listen(
           (capsules) {
@@ -33,7 +39,8 @@ class CapsuleProvider with ChangeNotifier {
 
   // Listen to received capsules
   void listenToReceivedCapsules(String userId) {
-    _firestoreService
+    _receivedSubscription?.cancel();
+    _receivedSubscription = _firestoreService
         .getReceivedCapsules(userId)
         .listen(
           (capsules) {
@@ -54,7 +61,15 @@ class CapsuleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestoreService.createCapsule(capsule);
+      final capsuleId = await _firestoreService.createCapsule(capsule);
+
+      // Show immediately on sender dashboard while stream catches up.
+      final createdCapsule = capsule.copyWith(capsuleId: capsuleId);
+      _sentCapsules = [
+        createdCapsule,
+        ..._sentCapsules.where((c) => c.capsuleId != capsuleId),
+      ];
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -114,12 +129,19 @@ class CapsuleProvider with ChangeNotifier {
   // Get contacts for recipient selection
   Future<List<Map<String, dynamic>>> getContacts(String currentUserId) async {
     try {
-      return await _firestoreService.getContacts(currentUserId);
+      final contacts = await _firestoreService.getContacts(currentUserId);
+      _contacts = contacts;
+      notifyListeners();
+      return contacts;
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();
       return [];
     }
+  }
+
+  Future<void> refreshContacts(String currentUserId) async {
+    await getContacts(currentUserId);
   }
 
   // Add contact by user ID
@@ -138,6 +160,12 @@ class CapsuleProvider with ChangeNotifier {
         contactUserId: contactUserId,
         displayName: displayName,
       );
+
+      _contacts = [
+        contact,
+        ..._contacts.where((c) => c['userId'] != contactUserId),
+      ];
+
       _isLoading = false;
       notifyListeners();
       return contact;
@@ -149,9 +177,42 @@ class CapsuleProvider with ChangeNotifier {
     }
   }
 
-  // Delete capsule
-  Future<void> deleteCapsule(String capsuleId) async {
+  Future<bool> deleteContact({
+    required String ownerUserId,
+    required String contactUserId,
+  }) async {
+    if (ownerUserId.trim().isEmpty || contactUserId.trim().isEmpty) {
+      _errorMessage = 'Invalid contact selected for deletion.';
+      notifyListeners();
+      return false;
+    }
+
     _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _firestoreService.deleteContact(
+        ownerUserId: ownerUserId,
+        contactUserId: contactUserId,
+      );
+
+      _contacts.removeWhere((c) => c['userId'] == contactUserId);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Delete capsule
+  Future<bool> deleteCapsule(String capsuleId) async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -160,8 +221,10 @@ class CapsuleProvider with ChangeNotifier {
       _sentCapsules.removeWhere((c) => c.capsuleId == capsuleId);
       _receivedCapsules.removeWhere((c) => c.capsuleId == capsuleId);
       _errorMessage = null;
+      return true;
     } catch (e) {
       _errorMessage = e.toString();
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -171,5 +234,12 @@ class CapsuleProvider with ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _sentSubscription?.cancel();
+    _receivedSubscription?.cancel();
+    super.dispose();
   }
 }
