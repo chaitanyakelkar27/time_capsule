@@ -27,13 +27,29 @@ class UserModel {
   }
 
   // Create UserModel from Firestore document
-  factory UserModel.fromMap(Map<String, dynamic> map) {
+  factory UserModel.fromMap(Map<String, dynamic> map, {String? documentId}) {
+    final dynamic rawCreatedAt = map['createdAt'];
+
+    DateTime createdAt;
+    if (rawCreatedAt is Timestamp) {
+      createdAt = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is DateTime) {
+      createdAt = rawCreatedAt;
+    } else {
+      createdAt = DateTime.now();
+    }
+
+    final String resolvedUserId =
+        (map['userId'] as String?)?.trim().isNotEmpty == true
+        ? (map['userId'] as String).trim()
+        : (documentId ?? '');
+
     return UserModel(
-      userId: map['userId'] ?? '',
+      userId: resolvedUserId,
       email: map['email'] ?? '',
       displayName: map['displayName'] ?? '',
       fcmToken: map['fcmToken'],
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
     );
   }
 
