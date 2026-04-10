@@ -88,6 +88,19 @@ class CapsuleModel {
 
   // Create from Firestore document
   factory CapsuleModel.fromMap(Map<String, dynamic> map) {
+    DateTime parseDate(dynamic value, DateTime fallback) {
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+      if (value is DateTime) {
+        return value;
+      }
+      return fallback;
+    }
+
+    final now = DateTime.now();
+    final createdAt = parseDate(map['createdAt'], now);
+
     return CapsuleModel(
       capsuleId: map['capsuleId'] ?? '',
       senderId: map['senderId'] ?? '',
@@ -101,21 +114,21 @@ class CapsuleModel {
       thumbnailUrl: map['thumbnailUrl'],
       unlockType: map['unlockType'] ?? 'time',
       unlockDate: map['unlockDate'] != null
-          ? (map['unlockDate'] as Timestamp).toDate()
+          ? parseDate(map['unlockDate'], now)
           : null,
       unlockLocation: map['unlockLocation'] as GeoPoint?,
       unlockRadius: map['unlockRadius']?.toDouble(),
       status: map['status'] ?? 'locked',
       isLocked: map['isLocked'] ?? true,
       unlockedAt: map['unlockedAt'] != null
-          ? (map['unlockedAt'] as Timestamp).toDate()
+          ? parseDate(map['unlockedAt'], now)
           : null,
       reactionVideoUrl: map['reactionVideoUrl'],
       reactionRecordedAt: map['reactionRecordedAt'] != null
-          ? (map['reactionRecordedAt'] as Timestamp).toDate()
+          ? parseDate(map['reactionRecordedAt'], now)
           : null,
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-      updatedAt: (map['updatedAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
+      updatedAt: parseDate(map['updatedAt'], createdAt),
     );
   }
 
@@ -171,6 +184,21 @@ class CapsuleModel {
   bool get isTimeLocked => unlockType == 'time' || unlockType == 'both';
   bool get isLocationLocked => unlockType == 'location' || unlockType == 'both';
   bool get hasReaction => reactionVideoUrl != null;
+
+  // UI lock state used when backend unlock status has not updated yet.
+  bool get isEffectivelyLocked {
+    if (!isLocked) {
+      return false;
+    }
+
+    // Time-only capsules should unlock immediately once time passes,
+    // even if background unlock job has not run yet.
+    if (isTimeLocked && !isLocationLocked && isUnlockTimePassed) {
+      return false;
+    }
+
+    return true;
+  }
 
   // Media URL getters
   String? get imageUrl => type == 'image' ? mediaUrl : null;
