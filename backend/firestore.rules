@@ -22,9 +22,20 @@ service cloud.firestore {
       // Contacts are private per user and used for recipient selection
       match /contacts/{contactUserId} {
         allow get, list: if isOwner(userId);
-        allow create, update: if isOwner(userId) &&
-                              request.resource.data.userId == contactUserId;
-        allow delete: if isOwner(userId);
+        allow create, update: if (
+                                isOwner(userId) &&
+                                request.resource.data.userId == contactUserId
+                              ) || (
+                                isAuthenticated() &&
+                                request.auth.uid == contactUserId &&
+                                request.resource.data.userId == contactUserId &&
+                                exists(/databases/$(database)/documents/users/$(request.auth.uid)/contacts/$(userId))
+                              );
+        allow delete: if isOwner(userId) || (
+                        isAuthenticated() &&
+                        request.auth.uid == contactUserId &&
+                        exists(/databases/$(database)/documents/users/$(request.auth.uid)/contacts/$(userId))
+                      );
       }
     }
     
