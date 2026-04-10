@@ -44,7 +44,8 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
   }
 
   void _initializeVideoPlayer() async {
-    if (widget.capsule.videoUrl != null && !widget.capsule.isLocked) {
+    if (widget.capsule.videoUrl != null &&
+        !widget.capsule.isEffectivelyLocked) {
       _videoController = VideoPlayerController.networkUrl(
         Uri.parse(widget.capsule.videoUrl!),
       );
@@ -63,7 +64,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
   }
 
   void _startCountdownTimer() {
-    if (widget.capsule.isLocked && widget.capsule.isTimeLocked) {
+    if (widget.capsule.isEffectivelyLocked && widget.capsule.isTimeLocked) {
       _updateTimeRemaining();
       _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _updateTimeRemaining();
@@ -96,9 +97,12 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (!widget.capsule.isLocked)
+          if (!widget.capsule.isEffectivelyLocked)
             IconButton(
-              icon: const Icon(Icons.share_outlined, color: AppTheme.textSecondary),
+              icon: const Icon(
+                Icons.share_outlined,
+                color: AppTheme.textSecondary,
+              ),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Share feature coming soon')),
@@ -107,7 +111,10 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
             ),
           if (widget.isSent)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: AppTheme.textSecondary),
+              icon: const Icon(
+                Icons.delete_outline,
+                color: AppTheme.textSecondary,
+              ),
               onPressed: () => _confirmDelete(context, capsuleProvider),
             ),
         ],
@@ -130,13 +137,13 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               const SizedBox(height: 20),
 
               // ── Countdown (locked time-based) ─────
-              if (widget.capsule.isLocked &&
+              if (widget.capsule.isEffectivelyLocked &&
                   widget.capsule.isTimeLocked &&
                   _timeRemaining != null &&
                   !_timeRemaining!.isNegative)
                 _buildCountdownTiles(),
 
-              if (widget.capsule.isLocked &&
+              if (widget.capsule.isEffectivelyLocked &&
                   widget.capsule.isTimeLocked &&
                   _timeRemaining != null &&
                   !_timeRemaining!.isNegative)
@@ -147,7 +154,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               const SizedBox(height: 20),
 
               // ── Content Area ───────────────────────
-              if (widget.capsule.isLocked)
+              if (widget.capsule.isEffectivelyLocked)
                 _buildLockedContent()
               else
                 _buildUnlockedContent(),
@@ -155,7 +162,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               const SizedBox(height: 24),
 
               // ── Action Buttons ─────────────────────
-              if (!widget.capsule.isLocked && isRecipient)
+              if (!widget.capsule.isEffectivelyLocked && isRecipient)
                 _buildActionButtons(capsuleProvider),
             ],
           ),
@@ -166,7 +173,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
 
   // ── Status Label ─────────────────────────────────────
   Widget _buildStatusLabel() {
-    final isLocked = widget.capsule.isLocked;
+    final isLocked = widget.capsule.isEffectivelyLocked;
     final color = isLocked ? AppTheme.statusLocked : AppTheme.statusUnlocked;
     final text = isLocked ? 'LOCKED' : 'UNLOCKED';
 
@@ -178,10 +185,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: AppTheme.label.copyWith(color: color),
-        ),
+        Text(text, style: AppTheme.label.copyWith(color: color)),
       ],
     );
   }
@@ -227,10 +231,7 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              label,
-              style: AppTheme.label.copyWith(fontSize: 10),
-            ),
+            Text(label, style: AppTheme.label.copyWith(fontSize: 10)),
           ],
         ),
       ),
@@ -337,7 +338,8 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
   }
 
   Widget _buildLocationUnlockCard() {
-    final withinRadius = _distanceToUnlock != null &&
+    final withinRadius =
+        _distanceToUnlock != null &&
         _distanceToUnlock! <= (widget.capsule.unlockRadius ?? 100);
 
     return Container(
@@ -354,15 +356,25 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, color: AppTheme.textSecondary, size: 18),
+              const Icon(
+                Icons.location_on_outlined,
+                color: AppTheme.textSecondary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
-              Text('Location Required', style: AppTheme.subheading.copyWith(fontSize: 14)),
+              Text(
+                'Location Required',
+                style: AppTheme.subheading.copyWith(fontSize: 14),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             'You must be within ${widget.capsule.unlockRadius?.toInt() ?? 100}m of the unlock location.',
-            style: AppTheme.body.copyWith(color: AppTheme.textMuted, fontSize: 13),
+            style: AppTheme.body.copyWith(
+              color: AppTheme.textMuted,
+              fontSize: 13,
+            ),
           ),
           if (_distanceToUnlock != null) ...[
             const SizedBox(height: 10),
@@ -381,7 +393,10 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.my_location, size: 18),
             label: Text(_isCheckingLocation ? 'Checking...' : 'Check Location'),
@@ -474,7 +489,10 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
             widget.capsule.message!.isNotEmpty)
           _buildTextContent(),
         if (widget.capsule.recipientId ==
-                Provider.of<AuthProvider>(context, listen: false).user?.userId &&
+                Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
+                ).user?.userId &&
             widget.capsule.reactionVideoUrl == null) ...[
           const SizedBox(height: 20),
           _buildRecordReactionButton(),
@@ -512,9 +530,16 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 40, color: AppTheme.textMuted),
+                const Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: AppTheme.textMuted,
+                ),
                 const SizedBox(height: 8),
-                Text('Failed to load image', style: AppTheme.body.copyWith(color: AppTheme.textMuted)),
+                Text(
+                  'Failed to load image',
+                  style: AppTheme.body.copyWith(color: AppTheme.textMuted),
+                ),
               ],
             ),
           ),
@@ -541,7 +566,8 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               child: Container(
                 height: 240,
                 color: Colors.black,
-                child: _videoController != null &&
+                child:
+                    _videoController != null &&
                         _videoController!.value.isInitialized
                     ? AspectRatio(
                         aspectRatio: _videoController!.value.aspectRatio,
@@ -551,9 +577,16 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const CircularProgressIndicator(color: AppTheme.primary),
+                            const CircularProgressIndicator(
+                              color: AppTheme.primary,
+                            ),
                             const SizedBox(height: 12),
-                            Text('Loading video...', style: AppTheme.body.copyWith(color: AppTheme.textMuted)),
+                            Text(
+                              'Loading video...',
+                              style: AppTheme.body.copyWith(
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -566,9 +599,18 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.videocam_outlined, color: AppTheme.textSecondary, size: 18),
+                      const Icon(
+                        Icons.videocam_outlined,
+                        color: AppTheme.textSecondary,
+                        size: 18,
+                      ),
                       const SizedBox(width: 6),
-                      Text('Video', style: AppTheme.body.copyWith(fontWeight: FontWeight.w500)),
+                      Text(
+                        'Video',
+                        style: AppTheme.body.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
                   if (_videoController != null &&
@@ -611,7 +653,11 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.chat_bubble_outline, color: AppTheme.textSecondary, size: 18),
+              const Icon(
+                Icons.chat_bubble_outline,
+                color: AppTheme.textSecondary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text('Message', style: AppTheme.subheading),
             ],
@@ -633,7 +679,10 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
           ? const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.primary,
+              ),
             )
           : const Icon(Icons.mic_outlined, size: 18, color: AppTheme.primary),
       label: Text(
@@ -715,7 +764,11 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.favorite_outline, color: AppTheme.textSecondary, size: 18),
+              const Icon(
+                Icons.favorite_outline,
+                color: AppTheme.textSecondary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text('Reaction', style: AppTheme.subheading),
             ],
@@ -731,11 +784,18 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.videocam_outlined, size: 36, color: AppTheme.textMuted),
+                  const Icon(
+                    Icons.videocam_outlined,
+                    size: 36,
+                    color: AppTheme.textMuted,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Reaction video player coming soon',
-                    style: AppTheme.body.copyWith(color: AppTheme.textMuted, fontSize: 13),
+                    style: AppTheme.body.copyWith(
+                      color: AppTheme.textMuted,
+                      fontSize: 13,
+                    ),
                   ),
                   if (widget.capsule.reactionRecordedAt != null)
                     Padding(
@@ -767,7 +827,11 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle_outline, color: AppTheme.success, size: 18),
+            const Icon(
+              Icons.check_circle_outline,
+              color: AppTheme.success,
+              size: 18,
+            ),
             const SizedBox(width: 8),
             Text(
               "You've already recorded a reaction",
@@ -866,25 +930,61 @@ class _CapsuleDetailScreenState extends State<CapsuleDetailScreen> {
 
     if (confirmed == true) {
       if (!context.mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: AppTheme.primary),
-        ),
-      );
 
-      await capsuleProvider.deleteCapsule(widget.capsule.capsuleId);
+      final messenger = ScaffoldMessenger.of(context);
+      bool loadingOpen = false;
 
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
+      try {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(
+            child: CircularProgressIndicator(color: AppTheme.primary),
+          ),
+        );
+        loadingOpen = true;
 
-      if (context.mounted) {
-        Navigator.pop(context);
-        Navigator.pop(context);
+        final success = await capsuleProvider.deleteCapsule(
+          widget.capsule.capsuleId,
+        );
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!context.mounted) return;
+
+        if (loadingOpen) {
+          Navigator.of(context, rootNavigator: true).pop();
+          loadingOpen = false;
+        }
+
+        if (!success) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                capsuleProvider.errorMessage ?? 'Failed to delete capsule',
+              ),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+          return;
+        }
+
+        // Pop detail screen only once to return to home list.
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
           const SnackBar(content: Text('Capsule deleted successfully')),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+
+        if (loadingOpen) {
+          Navigator.of(context, rootNavigator: true).pop();
+          loadingOpen = false;
+        }
+
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete capsule: $e'),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     }
