@@ -90,11 +90,13 @@ class CapsuleCard extends StatelessWidget {
 
   Color _statusColor() {
     if (capsule.status == 'reacted') return AppTheme.primary;
-    return capsule.isLocked ? AppTheme.statusLocked : AppTheme.statusUnlocked;
+    return capsule.isEffectivelyLocked
+        ? AppTheme.statusLocked
+        : AppTheme.statusUnlocked;
   }
 
   IconData _statusIcon() {
-    if (!capsule.isLocked) return Icons.check_circle_outline;
+    if (!capsule.isEffectivelyLocked) return Icons.check_circle_outline;
     return Icons.lock_outline;
   }
 
@@ -125,8 +127,11 @@ class CapsuleCard extends StatelessWidget {
   }
 
   String _buildUnlockLabel() {
-    if (!capsule.isLocked && capsule.unlockedAt != null) {
-      return 'UNLOCKED ${DateFormat('MMM dd, yyyy').format(capsule.unlockedAt!)}';
+    if (!capsule.isEffectivelyLocked) {
+      if (capsule.unlockedAt != null) {
+        return 'UNLOCKED ${DateFormat('MMM dd, yyyy').format(capsule.unlockedAt!)}';
+      }
+      return 'UNLOCKED';
     }
 
     if (capsule.isTimeLocked && capsule.unlockDate != null) {
