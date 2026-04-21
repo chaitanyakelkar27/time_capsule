@@ -2,12 +2,21 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Web-blue.svg)](#-installation)
+[![Distribution](https://img.shields.io/badge/Distribution-APK-orange.svg)](#for-users-install-apk)
 
 ## Description
 
 TimeCapsule is a cross-platform Flutter application that lets users create digital capsules containing messages, photos, or videos that unlock in the future by time or by location. It solves the problem of preserving meaningful moments and delivering them with intentional timing, while adding AI-assisted writing and real-time updates.
 
-Live web app: https://time-capsule-c4c2a.web.app
+Current release channel: Android APK (shared directly by maintainer). Live public demo link is not available right now.
+
+## Latest Updates (April 2026)
+
+- Shifted public distribution focus to APK installs for stable testing and demos.
+- Improved Firebase Cloud Functions v2 workflows for scheduled unlock processing and unlock alerts.
+- Strengthened real-time capsule lifecycle updates (sent, received, unlocked) via Firestore streams.
+- Expanded AI-assisted message writing support through configurable Grok/Groq integration.
+- Refined Android release build flow and documented fallback Gradle build command.
 
 ## Features
 
@@ -54,6 +63,13 @@ Live web app: https://time-capsule-c4c2a.web.app
 4. Launch TimeCapsule and grant required permissions (notifications, camera, location).
 
 If an older build is already installed and install fails, uninstall the old app first, then install the new APK.
+
+Recommended README additions when sharing this project publicly:
+- APK version (for example: `v1.2.0`)
+- Build date
+- Minimum Android version supported
+- SHA-256 checksum of the APK (for integrity verification)
+- Contact/issue link for reporting install problems
 
 ### For Developers (Build from Source)
 
